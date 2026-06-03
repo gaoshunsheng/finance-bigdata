@@ -1,0 +1,26 @@
+server:
+  port: 0  # 随机端口
+
+spring:
+  application:
+    name: decision-server-test
+
+decision:
+  engine:
+    thread-pool:
+      dag-execution:
+        core-size: 2
+        max-size: 4
+        queue-capacity: 10
+      external-api:
+        core-size: 2
+        max-size: 4
+        queue-capacity: 10
+    cache:
+      max-size: 100
+      max-versions: 3
+    rate-limit:
+      enabled: false
+    auth:
+      enabled: true
+      secret-key: test-secret
