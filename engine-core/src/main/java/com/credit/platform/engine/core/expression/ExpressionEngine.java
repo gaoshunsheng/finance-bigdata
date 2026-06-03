@@ -2,6 +2,7 @@ package com.credit.platform.engine.core.expression;
 
 import com.googlecode.aviator.AviatorEvaluator;
 import com.googlecode.aviator.Expression;
+import com.googlecode.aviator.runtime.function.AbstractVariadicFunction;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -22,11 +23,37 @@ public class ExpressionEngine {
 
     private final Map<String, Expression> cache = new ConcurrentHashMap<>();
 
+    /** 全局标记: 自定义函数是否已注册 (AviatorEvaluator 是全局单例) */
+    private static volatile boolean functionsRegistered = false;
+
     /**
      * 构造函数，注册内置自定义函数。
+     * <p>
+     * 使用双重检查锁确保函数只注册一次，避免 WARN 日志。
+     * </p>
      */
     public ExpressionEngine() {
-        registerFunctions();
+        registerFunctionsOnce();
+    }
+
+    /**
+     * 仅注册一次自定义函数。
+     * <p>
+     * {@link AviatorEvaluator} 是全局单例，多次注册同名函数会产生 WARN 日志。
+     * 使用 volatile + DCL 保证线程安全且仅注册一次。
+     * </p>
+     */
+    private static void registerFunctionsOnce() {
+        if (!functionsRegistered) {
+            synchronized (ExpressionEngine.class) {
+                if (!functionsRegistered) {
+                    AviatorEvaluator.addFunction(new BetweenFunction());
+                    AviatorEvaluator.addFunction(new InFunction());
+                    AviatorEvaluator.addFunction(new DaysBetweenFunction());
+                    functionsRegistered = true;
+                }
+            }
+        }
     }
 
     /**
@@ -73,15 +100,6 @@ public class ExpressionEngine {
         } catch (Exception e) {
             return false;
         }
-    }
-
-    /**
-     * 注册自定义 Aviator 函数。
-     */
-    private void registerFunctions() {
-        AviatorEvaluator.addFunction(new BetweenFunction());
-        AviatorEvaluator.addFunction(new InFunction());
-        AviatorEvaluator.addFunction(new DaysBetweenFunction());
     }
 
     /**

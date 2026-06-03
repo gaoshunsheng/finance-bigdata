@@ -45,15 +45,6 @@ import org.springframework.context.annotation.Bean;
 public class DecisionAutoConfiguration {
 
     /**
-     * 配置属性 Bean。
-     */
-    @Bean
-    @ConditionalOnMissingBean
-    public DecisionClientProperties decisionClientProperties() {
-        return new DecisionClientProperties();
-    }
-
-    /**
      * 创建决策引擎客户端 Bean。
      *
      * @param properties 配置属性
