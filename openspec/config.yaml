@@ -1,0 +1,39 @@
+schema: spec-driven
+
+context: |
+  项目: 企业征信大数据平台 (finance-bigdata)
+  定位: 集团内部信贷业务基础设施
+
+  技术栈:
+    后端: Java 17+ / Spring Boot 3.x / MyBatis-Plus
+    前端: Vue 3 + TypeScript / Ant Design Vue
+    大数据: Hadoop(HDFS+Hive) / Flink / Spark / Kafka
+    存储: MySQL / Redis Cluster / HBase / Elasticsearch
+    表达式引擎: Aviator
+    DAG画布: AntV X6
+    容器化: Docker / Kubernetes
+
+  核心模块:
+    1. 大数据平台 — 数据接入/存储计算/治理/服务
+    2. 决策引擎 — 自研规则引擎(编译执行模型, AST解释器)
+    3. 模型平台 — ML模型全生命周期管理
+    4. 运维平台 — 监控/调度/成本优化
+
+  设计原则:
+    - 自研决策引擎, 不依赖第三方规则引擎商业授权
+    - 编译一次执行多次 (JSON → AST → Cache)
+    - 数据获取与规则执行分离
+    - 可解释性是第一等公民
+    - engine-core 纯Java无Spring依赖
+
+  数据规模: 日增>5000万条, 总存储>50TB
+  性能目标: 单笔决策P99<3s, 单机QPS≥500
+
+rules:
+  proposal:
+    - 所有规格变更需说明影响范围
+    - 技术选型变更需记录决策理由
+  spec:
+    - 使用北京时间 (Asia/Shanghai), 格式 yyyy-MM-dd HH:mm:ss
+    - 所有 JSON 示例必须是合法 JSON
+    - 性能指标必须可量化、可测试
