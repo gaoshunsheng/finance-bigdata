@@ -12,3 +12,7 @@ spring:
 logging:
   level:
     com.credit.platform: INFO
+
+decision:
+  security:
+    enabled: true
