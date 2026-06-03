@@ -1,6 +1,7 @@
 package com.credit.platform.engine.sdk.autoconfigure;
 
 import com.credit.platform.engine.sdk.DecisionClientConfig;
+import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
  * Spring Boot 配置属性 — 映射 application.yml 中的 decision.client.* 配置。
@@ -19,6 +20,7 @@ import com.credit.platform.engine.sdk.DecisionClientConfig;
  * </pre>
  * </p>
  */
+@ConfigurationProperties(prefix = "decision.client")
 public class DecisionClientProperties {
 
     /** 决策引擎服务地址 */
