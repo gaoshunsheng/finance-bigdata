@@ -1,0 +1,197 @@
+openapi: 3.0.3
+info:
+  title: 信贷风控决策引擎平台 API
+  version: 1.0.0
+  description: 决策执行、管理后台、模型平台完整API文档
+
+servers:
+  - url: http://localhost:8080
+    description: 决策引擎服务
+  - url: http://localhost:8081
+    description: 管理后台
+  - url: http://localhost:8082
+    description: 模型平台
+
+security:
+  - BearerAuth: []
+
+paths:
+  # ==================== 决策执行 ====================
+  /api/v1/decision/execute:
+    post:
+      tags: [决策执行]
+      summary: 执行决策
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecisionRequest'
+      responses:
+        '200':
+          description: 决策结果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DecisionResponse'
+
+  # ==================== 规则管理 ====================
+  /api/v1/rules:
+    get:
+      tags: [规则管理]
+      summary: 列出所有规则
+      responses:
+        '200':
+          description: 规则列表
+    post:
+      tags: [规则管理]
+      summary: 创建规则
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, content]
+              properties:
+                name: { type: string }
+                content: { type: string }
+                description: { type: string }
+
+  /api/v1/rules/{id}:
+    get:
+      tags: [规则管理]
+      summary: 获取规则详情
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+    put:
+      tags: [规则管理]
+      summary: 更新规则
+
+  /api/v1/rules/{id}/versions:
+    get:
+      tags: [规则管理]
+      summary: 版本历史
+
+  # ==================== 发布流程 ====================
+  /api/v1/publish/{type}/{id}/promote-to-testing:
+    post:
+      tags: [发布管理]
+      summary: 推进到测试 (DRAFT → TESTING)
+
+  /api/v1/publish/{type}/{id}/submit-approval:
+    post:
+      tags: [发布管理]
+      summary: 提交审批 (TESTING → PENDING_REVIEW)
+
+  /api/v1/publish/{type}/{id}/approve:
+    post:
+      tags: [发布管理]
+      summary: 审批通过 (PENDING_REVIEW → APPROVED)
+
+  /api/v1/publish/{type}/{id}/grayscale/start:
+    post:
+      tags: [灰度发布]
+      summary: 开始灰度发布
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                operator: { type: string }
+                percentage: { type: integer, default: 5 }
+
+  /api/v1/publish/{type}/{id}/rollback/{version}:
+    post:
+      tags: [发布管理]
+      summary: 回滚到指定版本
+
+  # ==================== 模型平台 ====================
+  /api/v1/inference/predict:
+    post:
+      tags: [模型推理]
+      summary: 单笔推理
+      servers: [{ url: 'http://localhost:8082' }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [model_id, features]
+              properties:
+                model_id: { type: string }
+                features: { type: object }
+
+  /api/v1/training/train:
+    post:
+      tags: [模型训练]
+      summary: 训练模型
+      servers: [{ url: 'http://localhost:8082' }]
+
+  /api/v1/monitoring/dashboard/{model_id}:
+    get:
+      tags: [模型监控]
+      summary: 监控仪表盘
+      servers: [{ url: 'http://localhost:8082' }]
+
+  # ==================== 认证 ====================
+  /api/v1/auth/login:
+    post:
+      tags: [认证]
+      summary: 用户登录
+      security: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username: { type: string }
+                password: { type: string }
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    DecisionRequest:
+      type: object
+      required: [decisionId, decisionType, inputData]
+      properties:
+        decisionId:
+          type: string
+          description: 决策ID
+        decisionType:
+          type: string
+          enum: [RULE, SCORECARD, TABLE, TREE, FLOW]
+        inputData:
+          type: object
+          description: 输入变量键值对
+
+    DecisionResponse:
+      type: object
+      properties:
+        decisionId:
+          type: string
+        result:
+          type: string
+          enum: [PASS, REJECT, REVIEW, MANUAL]
+        score:
+          type: integer
+          nullable: true
+        rejectReason:
+          type: string
+          nullable: true
+        rejectCode:
+          type: string
+          nullable: true
+        traceId:
+          type: string
+        durationMs:
+          type: integer
+        extra:
+          type: object
+          nullable: true
