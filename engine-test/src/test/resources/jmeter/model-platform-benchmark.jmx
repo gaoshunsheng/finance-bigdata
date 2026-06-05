@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
+  <hashTree>
+    <!-- Test Plan: 模型平台性能基准测试 -->
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="模型平台性能基准测试" enabled="true">
+      <boolProp name="TestPlan.functional_mode">false</boolProp>
+      <boolProp name="TestPlan.serialize_threadgroups">true</boolProp>
+      <stringProp name="TestPlan.comments">模型推理、训练、监控接口性能基准</stringProp>
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments">
+        <collectionProp name="Arguments.arguments">
+          <elementProp name="HOST" elementType="Argument">
+            <stringProp name="Argument.name">HOST</stringProp>
+            <stringProp name="Argument.value">localhost</stringProp>
+          </elementProp>
+          <elementProp name="PORT" elementType="Argument">
+            <stringProp name="Argument.name">PORT</stringProp>
+            <stringProp name="Argument.value">8082</stringProp>
+          </elementProp>
+          <elementProp name="THREADS" elementType="Argument">
+            <stringProp name="Argument.name">THREADS</stringProp>
+            <stringProp name="Argument.value">20</stringProp>
+          </elementProp>
+          <elementProp name="RAMP_UP" elementType="Argument">
+            <stringProp name="Argument.name">RAMP_UP</stringProp>
+            <stringProp name="Argument.value">5</stringProp>
+          </elementProp>
+          <elementProp name="LOOPS" elementType="Argument">
+            <stringProp name="Argument.name">LOOPS</stringProp>
+            <stringProp name="Argument.value">100</stringProp>
+          </elementProp>
+        </collectionProp>
+      </elementProp>
+    </TestPlan>
+    <hashTree>
+
+      <!-- Thread Group 1: 单笔推理 -->
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="单笔推理性能" enabled="true">
+        <intProp name="ThreadGroup.num_threads">${THREADS}</intProp>
+        <intProp name="ThreadGroup.ramp_time">${RAMP_UP}</intProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController">
+          <stringProp name="LoopController.loops">${LOOPS}</stringProp>
+        </elementProp>
+      </ThreadGroup>
+      <hashTree>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="单笔推理" enabled="true">
+          <stringProp name="HTTPSampler.domain">${HOST}</stringProp>
+          <stringProp name="HTTPSampler.port">${PORT}</stringProp>
+          <stringProp name="HTTPSampler.protocol">http</stringProp>
+          <stringProp name="HTTPSampler.contentEncoding">UTF-8</stringProp>
+          <stringProp name="HTTPSampler.path">/api/v1/inference/predict</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+          <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+            <collectionProp name="Arguments.arguments">
+              <elementProp name="" elementType="HTTPArgument">
+                <stringProp name="Argument.value">{
+  "model_id": "model_lr_001",
+  "features": {
+    "age": ${__Random(22,60)},
+    "income": ${__Random(3000,80000)},
+    "overdue_count": ${__Random(0,15)},
+    "credit_query_count": ${__Random(0,25)},
+    "employment_years": ${__Random(0,35)},
+    "loan_amount": ${__Random(5000,1000000)},
+    "credit_history_months": ${__Random(6,240)}
+  }
+}</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+            </collectionProp>
+          </elementProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="HTTP Headers" enabled="true">
+            <collectionProp name="HeaderManager.headers">
+              <elementProp name="Content-Type" elementType="Header">
+                <stringProp name="Header.name">Content-Type</stringProp>
+                <stringProp name="Header.value">application/json</stringProp>
+              </elementProp>
+            </collectionProp>
+          </HeaderManager>
+          <hashTree/>
+          <DurationAssertion guiclass="DurationAssertionGui" testclass="DurationAssertion" testname="延迟断言" enabled="true">
+            <stringProp name="DurationAssertion.duration">5000</stringProp>
+          </DurationAssertion>
+          <hashTree/>
+        </hashTree>
+        <ResultCollector guiclass="SummaryReport" testclass="ResultCollector" testname="推理-汇总报告" enabled="true">
+          <boolProp name="ResultCollector.error_logging">false</boolProp>
+          <objProp>
+            <name>saveConfig</name>
+            <value class="SampleSaveConfiguration">
+              <time>true</time><latency>true</latency><timestamp>true</timestamp>
+              <success>true</success><label>true</label><code>true</code>
+              <message>true</message><threadName>true</threadName>
+              <dataType>true</dataType><assertions>true</assertions>
+              <xml>false</xml><fieldNames>true</fieldNames>
+              <bytes>true</bytes><connectTime>true</connectTime>
+            </value>
+          </objProp>
+          <stringProp name="filename">results/model-inference-results.csv</stringProp>
+        </ResultCollector>
+        <hashTree/>
+      </hashTree>
+
+      <!-- Thread Group 2: 批量推理 -->
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="批量推理性能" enabled="true">
+        <intProp name="ThreadGroup.num_threads">${THREADS}</intProp>
+        <intProp name="ThreadGroup.ramp_time">${RAMP_UP}</intProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController">
+          <stringProp name="LoopController.loops">50</stringProp>
+        </elementProp>
+      </ThreadGroup>
+      <hashTree>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="批量推理(batch=10)" enabled="true">
+          <stringProp name="HTTPSampler.domain">${HOST}</stringProp>
+          <stringProp name="HTTPSampler.port">${PORT}</stringProp>
+          <stringProp name="HTTPSampler.protocol">http</stringProp>
+          <stringProp name="HTTPSampler.contentEncoding">UTF-8</stringProp>
+          <stringProp name="HTTPSampler.path">/api/v1/inference/batch-predict</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+          <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+            <collectionProp name="Arguments.arguments">
+              <elementProp name="" elementType="HTTPArgument">
+                <stringProp name="Argument.value">{
+  "model_id": "model_lr_001",
+  "batch": [
+    {"features": {"age": ${__Random(22,60)}, "income": ${__Random(3000,80000)}, "overdue_count": ${__Random(0,15)}}},
+    {"features": {"age": ${__Random(22,60)}, "income": ${__Random(3000,80000)}, "overdue_count": ${__Random(0,15)}}},
+    {"features": {"age": ${__Random(22,60)}, "income": ${__Random(3000,80000)}, "overdue_count": ${__Random(0,15)}}},
+    {"features": {"age": ${__Random(22,60)}, "income": ${__Random(3000,80000)}, "overdue_count": ${__Random(0,15)}}},
+    {"features": {"age": ${__Random(22,60)}, "income": ${__Random(3000,80000)}, "overdue_count": ${__Random(0,15)}}},
+    {"features": {"age": ${__Random(22,60)}, "income": ${__Random(3000,80000)}, "overdue_count": ${__Random(0,15)}}},
+    {"features": {"age": ${__Random(22,60)}, "income": ${__Random(3000,80000)}, "overdue_count": ${__Random(0,15)}}},
+    {"features": {"age": ${__Random(22,60)}, "income": ${__Random(3000,80000)}, "overdue_count": ${__Random(0,15)}}},
+    {"features": {"age": ${__Random(22,60)}, "income": ${__Random(3000,80000)}, "overdue_count": ${__Random(0,15)}}},
+    {"features": {"age": ${__Random(22,60)}, "income": ${__Random(3000,80000)}, "overdue_count": ${__Random(0,15)}}}
+  ]
+}</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+            </collectionProp>
+          </elementProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Headers" enabled="true">
+            <collectionProp name="HeaderManager.headers">
+              <elementProp name="Content-Type" elementType="Header">
+                <stringProp name="Header.name">Content-Type</stringProp>
+                <stringProp name="Header.value">application/json</stringProp>
+              </elementProp>
+            </collectionProp>
+          </HeaderManager>
+          <hashTree/>
+        </hashTree>
+        <ResultCollector guiclass="SummaryReport" testclass="ResultCollector" testname="批量推理-报告" enabled="true">
+          <boolProp name="ResultCollector.error_logging">false</boolProp>
+          <objProp><name>saveConfig</name><value class="SampleSaveConfiguration"><time>true</time><latency>true</latency><timestamp>true</timestamp><success>true</success><label>true</label><xml>false</xml><fieldNames>true</fieldNames><bytes>true</bytes><connectTime>true</connectTime></value></objProp>
+          <stringProp name="filename">results/model-batch-results.csv</stringProp>
+        </ResultCollector>
+        <hashTree/>
+      </hashTree>
+
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>
