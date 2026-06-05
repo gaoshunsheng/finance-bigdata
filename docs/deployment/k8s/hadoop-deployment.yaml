@@ -1,0 +1,124 @@
+# ============================================================================
+# HDFS NameNode + DataNode Deployments
+# ============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hadoop-namenode
+  namespace: finance-platform
+  labels:
+    app: hadoop-namenode
+    app.kubernetes.io/part-of: finance-bigdata
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hadoop-namenode
+  template:
+    metadata:
+      labels:
+        app: hadoop-namenode
+    spec:
+      containers:
+        - name: hadoop-namenode
+          image: apache/hadoop:3.3.6
+          command: ["hdfs", "namenode"]
+          ports:
+            - containerPort: 9870
+            - containerPort: 9000
+          env:
+            - name: ENSURE_NAMENODE_DIR
+              value: "/opt/hadoop/dfs/name"
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2000m"
+              memory: "2Gi"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 9870
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 9870
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          volumeMounts:
+            - name: nn-data
+              mountPath: /opt/hadoop/dfs/name
+      volumes:
+        - name: nn-data
+          persistentVolumeClaim:
+            claimName: hadoop-nn-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hadoop-namenode-svc
+  namespace: finance-platform
+  labels:
+    app: hadoop-namenode
+    app.kubernetes.io/part-of: finance-bigdata
+spec:
+  selector:
+    app: hadoop-namenode
+  ports:
+    - name: webui
+      port: 9870
+      targetPort: 9870
+      protocol: TCP
+    - name: rpc
+      port: 9000
+      targetPort: 9000
+      protocol: TCP
+  type: ClusterIP
+---
+# HDFS DataNode
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hadoop-datanode
+  namespace: finance-platform
+  labels:
+    app: hadoop-datanode
+    app.kubernetes.io/part-of: finance-bigdata
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hadoop-datanode
+  template:
+    metadata:
+      labels:
+        app: hadoop-datanode
+    spec:
+      containers:
+        - name: hadoop-datanode
+          image: apache/hadoop:3.3.6
+          command: ["hdfs", "datanode"]
+          env:
+            - name: HADOOP_NAMENODE_HOST
+              value: "hadoop-namenode-svc"
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2000m"
+              memory: "2Gi"
+          volumeMounts:
+            - name: dn-data
+              mountPath: /opt/hadoop/dfs/data
+      volumes:
+        - name: dn-data
+          persistentVolumeClaim:
+            claimName: hadoop-dn-pvc

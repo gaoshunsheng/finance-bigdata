@@ -1,0 +1,94 @@
+# ============================================================================
+# Data Service Spring Boot Deployment
+# ============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: data-service
+  namespace: finance-platform
+  labels:
+    app: data-service
+    app.kubernetes.io/part-of: finance-bigdata
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: data-service
+  template:
+    metadata:
+      labels:
+        app: data-service
+    spec:
+      containers:
+        - name: data-service
+          image: finance-bigdata/data-service:latest
+          ports:
+            - containerPort: 8083
+          envFrom:
+            - configMapRef:
+                name: finance-platform-config
+            - secretRef:
+                name: finance-platform-secrets
+          env:
+            - name: SERVER_PORT
+              value: "8083"
+            - name: SPRING_APPLICATION_NAME
+              value: "data-service"
+            - name: SPRING_PROFILES_ACTIVE
+              value: "prod"
+            - name: REDIS_HOST
+              value: "redis-svc"
+            - name: HBASE_ZK_QUORUM
+              value: "zookeeper-svc"
+            - name: ES_HOST
+              value: "elasticsearch-svc"
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: "kafka-svc:9092"
+            - name: JAVA_OPTS
+              value: "-Xms256m -Xmx512m -XX:+UseG1GC -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Dfile.encoding=UTF-8"
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "2000m"
+              memory: "1Gi"
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8083
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8083
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          volumeMounts:
+            - name: logs
+              mountPath: /app/logs
+      volumes:
+        - name: logs
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: data-service-svc
+  namespace: finance-platform
+  labels:
+    app: data-service
+    app.kubernetes.io/part-of: finance-bigdata
+spec:
+  selector:
+    app: data-service
+  ports:
+    - port: 8083
+      targetPort: 8083
+      protocol: TCP
+  type: ClusterIP

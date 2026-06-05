@@ -1,0 +1,47 @@
+-- ============================================================================
+-- HBase建表脚本: 客户特征表 (customer_feature)
+-- 描述: 存储客户维度实时/离线特征数据，用于风控模型在线推理
+-- RowKey设计: reversed(customerId) + '_' + featureType + '_' + timestamp
+--   - customerId反转: 避免前缀热点，打散写入分布
+--   - featureType: 特征类型(credit/behavior/profile/device)
+--   - timestamp: 时间戳，支持多版本特征追溯
+-- 列族: cf (column family) - 存储特征键值对
+-- 创建时间: 2026-06-06
+-- ============================================================================
+
+-- 创建客户特征表
+-- VERSIONS => 3: 保留最近3个版本的特征值，支持特征回溯
+-- COMPRESSION => SNAPPY: 使用Snappy压缩，减少存储空间
+-- TTL => 94608000: 数据保留3年（94608000秒 = 365*3*24*3600）
+-- SPLITS: 预分区16个Region，按十六进制首字符分片，避免写入热点
+create 'customer_feature', {NAME => 'cf', VERSIONS => 3, COMPRESSION => 'SNAPPY', TTL => 94608000}, {SPLITS => ['1','2','3','4','5','6','7','8','9','A','B','C','D','E','F']}
+
+-- 验证表结构
+describe 'customer_feature'
+
+-- 表结构说明:
+-- +--------------+---------------------------------------------------+
+-- | 属性         | 值                                                |
+-- +--------------+---------------------------------------------------+
+-- | 表名         | customer_feature                                  |
+-- | 列族         | cf                                                |
+-- | 版本数       | 3                                                 |
+-- | 压缩算法     | SNAPPY                                            |
+-- | TTL          | 94608000秒（3年）                                 |
+-- | 预分区数     | 16个Region                                        |
+-- | RowKey格式   | reversed(customerId) + '_' + featureType + '_' + ts |
+-- +--------------+---------------------------------------------------+
+--
+-- 常用RowKey示例:
+--   reversed('CUST001') + '_credit_' + '1686096000000'
+--   => '100TSUC_credit_1686096000000'
+--
+-- 常用列限定符:
+--   cf:credit_score        -- 信用评分
+--   cf:overdue_count_3m    -- 近3个月逾期次数
+--   cf:query_count_1m      -- 近1个月征信查询次数
+--   cf:risk_level          -- 风险等级(HIGH/MEDIUM/LOW)
+--   cf:apply_count_6m      -- 近6个月申请次数
+--   cf:avg_loan_amount     -- 平均贷款金额
+--   cf:device_fingerprint  -- 设备指纹
+--   cf:ip_address          -- IP地址
