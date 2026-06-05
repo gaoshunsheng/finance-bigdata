@@ -1,0 +1,59 @@
+-- ============================================================================
+-- HBase建表脚本: 外部数据表 (external_data)
+-- 描述: 存储从第三方数据源获取的外部数据（征信/工商/司法/运营商等）
+-- RowKey设计: dataSource + '_' + reversed(customerId) + '_' + timestamp
+--   - dataSource在前: 支持按数据源类型快速扫描
+--   - customerId反转: 避免同一客户数据集中在同一Region
+--   - timestamp: 支持按时间范围查询最新数据
+-- 创建时间: 2026-06-06
+-- ============================================================================
+
+-- 创建外部数据表
+-- 两个列族:
+--   1. data: 存储实际的外部数据内容（JSON格式），VERSIONS => 1 仅保留最新版本
+--   2. meta: 存储元数据信息（请求ID、获取时间、数据质量标记等），VERSIONS => 1
+-- COMPRESSION => SNAPPY: 使用Snappy压缩
+-- TTL => 31536000: 数据保留1年（31536000秒 = 365*24*3600）
+create 'external_data', \
+  {NAME => 'data', VERSIONS => 1, COMPRESSION => 'SNAPPY', TTL => 31536000}, \
+  {NAME => 'meta', VERSIONS => 1, COMPRESSION => 'SNAPPY', TTL => 31536000}, \
+  {SPLITS => ['1','2','3','4','5','6','7','8','9','A','B','C','D','E','F']}
+
+-- 验证表结构
+describe 'external_data'
+
+-- 表结构说明:
+-- +--------------+---------------------------------------------------+
+-- | 属性         | 值                                                |
+-- +--------------+---------------------------------------------------+
+-- | 表名         | external_data                                     |
+-- | 列族1        | data - 存储外部数据内容                           |
+-- | 列族2        | meta - 存储元数据信息                             |
+-- | 版本数       | 1（仅保留最新版本）                               |
+-- | 压缩算法     | SNAPPY                                            |
+-- | TTL          | 31536000秒（1年）                                 |
+-- | 预分区数     | 16个Region                                        |
+-- | RowKey格式   | dataSource + '_' + reversed(customerId) + '_' + ts |
+-- +--------------+---------------------------------------------------+
+--
+-- data列族常用列限定符:
+--   data:credit_report     -- 征信报告JSON
+--   data:business_info     -- 工商信息JSON
+--   data:judicial_info     -- 司法信息JSON
+--   data:carrier_info      -- 运营商数据JSON
+--   data:tax_info          -- 税务信息JSON
+--   data:social_security   -- 社保信息JSON
+--
+-- meta列族常用列限定符:
+--   meta:api_request_id    -- API请求ID
+--   meta:fetch_time        -- 数据获取时间
+--   meta:data_quality      -- 数据质量标记(GOOD/FAIR/POOR)
+--   meta:source_system     -- 来源系统标识
+--   meta:expire_time       -- 数据过期时间
+--
+-- 典型查询示例:
+--   -- 查询某客户最新的征信报告
+--   scan 'external_data', {ROWPREFIXFILTER => 'CREDIT_100TSUC_', LIMIT => 1, REVERSED => true}
+--
+--   -- 查询某条外部数据及其元数据
+--   get 'external_data', 'CREDIT_100TSUC_1686096000000', {COLUMN => ['data:credit_report', 'meta:data_quality']}

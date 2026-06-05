@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.credit.platform</groupId>
+        <artifactId>credit-bigdata-platform</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>data-platform</artifactId>
+    <packaging>pom</packaging>
+    <name>Data Platform - Big Data Infrastructure</name>
+    <description>大数据平台：Flink 实时计算 + 数据服务 API + 数据治理框架</description>
+
+    <modules>
+        <module>flink-jobs</module>
+        <module>data-service</module>
+        <module>data-governance</module>
+    </modules>
+
+    <properties>
+        <flink.version>1.18.1</flink.version>
+        <kafka.version>3.6.1</kafka.version>
+        <hbase.version>2.5.5-hadoop3</hbase.version>
+        <hadoop.version>3.3.6</hadoop.version>
+        <elasticsearch.version>8.13.4</elasticsearch.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- Flink -->
+            <dependency>
+                <groupId>org.apache.flink</groupId>
+                <artifactId>flink-streaming-java</artifactId>
+                <version>${flink.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.flink</groupId>
+                <artifactId>flink-clients</artifactId>
+                <version>${flink.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.flink</groupId>
+                <artifactId>flink-connector-kafka</artifactId>
+                <version>3.1.0-1.18</version>
+            </dependency>
+
+            <!-- Kafka Client -->
+            <dependency>
+                <groupId>org.apache.kafka</groupId>
+                <artifactId>kafka-clients</artifactId>
+                <version>${kafka.version}</version>
+            </dependency>
+
+            <!-- HBase -->
+            <dependency>
+                <groupId>org.apache.hbase</groupId>
+                <artifactId>hbase-client</artifactId>
+                <version>${hbase.version}</version>
+            </dependency>
+
+            <!-- Hadoop Common -->
+            <dependency>
+                <groupId>org.apache.hadoop</groupId>
+                <artifactId>hadoop-common</artifactId>
+                <version>${hadoop.version}</version>
+            </dependency>
+
+            <!-- Elasticsearch -->
+            <dependency>
+                <groupId>co.elastic.clients</groupId>
+                <artifactId>elasticsearch-java</artifactId>
+                <version>${elasticsearch.version}</version>
+            </dependency>
+
+            <!-- Internal -->
+            <dependency>
+                <groupId>com.credit.platform</groupId>
+                <artifactId>engine-common</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+</project>

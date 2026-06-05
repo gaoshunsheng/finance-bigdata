@@ -1,0 +1,75 @@
+{
+    "job": {
+        "content": [
+            {
+                "reader": {
+                    "name": "mysqlreader",
+                    "parameter": {
+                        "username": "etl_user",
+                        "password": "etl_password_123",
+                        "connection": [
+                            {
+                                "jdbcUrl": ["jdbc:mysql://mysql:3306/credit_platform?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai"],
+                                "table": ["loan_application"],
+                                "querySql": ["SELECT id, application_no, customer_id, product_id, channel, loan_amount, loan_term, purpose, apply_time, status, source_system, etl_time FROM loan_application WHERE DATE(apply_time) = '${dt}'"]
+                            }
+                        ],
+                        "column": [
+                            "id",
+                            "application_no",
+                            "customer_id",
+                            "product_id",
+                            "channel",
+                            "loan_amount",
+                            "loan_term",
+                            "purpose",
+                            "apply_time",
+                            "status",
+                            "source_system",
+                            "etl_time"
+                        ],
+                        "where": ""
+                    }
+                },
+                "writer": {
+                    "name": "hdfswriter",
+                    "parameter": {
+                        "defaultFS": "hdfs://namenode:8020",
+                        "fileType": "orc",
+                        "path": "/data/ods/ods_loan_application/dt=${dt}",
+                        "fileName": "ods_loan_application",
+                        "column": [
+                            {"name": "id", "type": "BIGINT"},
+                            {"name": "application_no", "type": "STRING"},
+                            {"name": "customer_id", "type": "STRING"},
+                            {"name": "product_id", "type": "STRING"},
+                            {"name": "channel", "type": "STRING"},
+                            {"name": "loan_amount", "type": "DECIMAL"},
+                            {"name": "loan_term", "type": "INT"},
+                            {"name": "purpose", "type": "STRING"},
+                            {"name": "apply_time", "type": "TIMESTAMP"},
+                            {"name": "status", "type": "STRING"},
+                            {"name": "source_system", "type": "STRING"},
+                            {"name": "etl_time", "type": "TIMESTAMP"}
+                        ],
+                        "writeMode": "overwrite",
+                        "fieldDelimiter": "",
+                        "compress": "SNAPPY",
+                        "encoding": "UTF-8"
+                    }
+                }
+            }
+        ],
+        "setting": {
+            "speed": {
+                "channel": 3,
+                "record": 10000,
+                "byte": 1048576
+            },
+            "errorLimit": {
+                "record": 0,
+                "percentage": 0.02
+            }
+        }
+    }
+}

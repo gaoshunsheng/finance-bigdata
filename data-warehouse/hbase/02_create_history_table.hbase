@@ -1,0 +1,44 @@
+-- ============================================================================
+-- HBase建表脚本: 客户特征历史表 (customer_feature_history)
+-- 描述: 存储客户特征的完整变更历史，用于特征溯源和模型回溯分析
+-- RowKey设计: reversed(customerId) + '_' + featureType + '_' + timestamp
+--   - 与customer_feature表保持一致的RowKey设计
+--   - 支持按客户ID+特征类型+时间范围扫描
+-- 列族: cf (column family) - 存储历史特征键值对
+-- 创建时间: 2026-06-06
+-- ============================================================================
+
+-- 创建客户特征历史表
+-- VERSIONS => 10: 保留最近10个版本的特征值，完整记录特征变更轨迹
+-- COMPRESSION => SNAPPY: 使用Snappy压缩，减少存储空间
+-- TTL => 94608000: 数据保留3年（94608000秒 = 365*3*24*3600）
+-- SPLITS: 预分区16个Region，与主特征表保持一致
+create 'customer_feature_history', {NAME => 'cf', VERSIONS => 10, COMPRESSION => 'SNAPPY', TTL => 94608000}, {SPLITS => ['1','2','3','4','5','6','7','8','9','A','B','C','D','E','F']}
+
+-- 验证表结构
+describe 'customer_feature_history'
+
+-- 表结构说明:
+-- +--------------+---------------------------------------------------+
+-- | 属性         | 值                                                |
+-- +--------------+---------------------------------------------------+
+-- | 表名         | customer_feature_history                          |
+-- | 列族         | cf                                                |
+-- | 版本数       | 10                                                |
+-- | 压缩算法     | SNAPPY                                            |
+-- | TTL          | 94608000秒（3年）                                 |
+-- | 预分区数     | 16个Region                                        |
+-- | RowKey格式   | reversed(customerId) + '_' + featureType + '_' + ts |
+-- +--------------+---------------------------------------------------+
+--
+-- 与customer_feature表的区别:
+--   - VERSIONS => 10（主表为3），保留更多历史版本
+--   - 用于特征溯源，记录每次特征变更的完整轨迹
+--   - 支持模型回溯分析：使用历史特征重现模型决策过程
+--
+-- 典型查询示例:
+--   -- 查询某客户信用评分的历史变更（最近10个版本）
+--   get 'customer_feature_history', '100TSUC_credit_1686096000000', {COLUMN => 'cf:credit_score', VERSIONS => 10}
+--
+--   -- 按前缀扫描某客户的所有特征历史
+--   scan 'customer_feature_history', {ROWPREFIXFILTER => '100TSUC_'}

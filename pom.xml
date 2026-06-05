@@ -19,6 +19,7 @@
         <module>decision-admin</module>
         <module>decision-sdk</module>
         <module>decision-server</module>
+        <module>data-platform</module>
     </modules>
 
     <properties>

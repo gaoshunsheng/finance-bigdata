@@ -1,0 +1,85 @@
+# ============================================================================
+# Canal Kafka Adapter 配置文件
+# 描述: 配置Canal将Binlog变更数据实时投递到Kafka消息队列
+# 文件路径: conf/kafka.yml
+# 用途: CDC数据管道 - MySQL Binlog -> Canal -> Kafka -> 下游消费者
+# 创建时间: 2026-06-06
+# ============================================================================
+
+# ==================== Kafka集群配置 ====================
+kafka:
+  # Kafka集群Bootstrap Servers地址
+  bootstrap.servers: "kafka:9092"
+
+  # ==================== 生产者配置 ====================
+  producer:
+    # 消息确认级别: all（最安全，等待所有副本确认）
+    acks: "all"
+    # 消息发送失败重试次数
+    retries: 3
+    # 批量发送大小（字节）
+    batch.size: 16384
+    # 批量发送延迟（毫秒），达到延迟时间或batch.size即发送
+    linger.ms: 10
+    # 生产者内存缓冲区大小（字节）
+    buffer.memory: 33554432
+    # 消息Key序列化器
+    key.serializer: "org.apache.kafka.common.serialization.StringSerializer"
+    # 消息Value序列化器
+    value.serializer: "org.apache.kafka.common.serialization.StringSerializer"
+
+# ==================== Canal数据源配置 ====================
+canal:
+  # Canal Server地址
+  server: "127.0.0.1:11111"
+  # 订阅的实例名称
+  destination: "example"
+  # 用户名（留空表示不需要认证）
+  username: ""
+  # 密码
+  password: ""
+  # 消费者组ID
+  groupId: "canal-kafka-adapter"
+
+# ==================== Topic路由配置 ====================
+# 描述: 定义数据库表变更数据到Kafka Topic的路由规则
+# Topic命名规则: cdc_{database}_{table}
+# 例如: credit_platform.loan_application -> cdc_credit_platform_loan_application
+topics:
+  # 贷款申请表变更
+  - database: "credit_platform"
+    table: "loan_application"
+    topic: "cdc_credit_platform_loan_application"
+
+  # 客户信息表变更
+  - database: "credit_platform"
+    table: "customer_info"
+    topic: "cdc_credit_platform_customer_info"
+
+  # 还款记录表变更
+  - database: "credit_platform"
+    table: "repayment_record"
+    topic: "cdc_credit_platform_repayment_record"
+
+  # 征信报告表变更
+  - database: "credit_platform"
+    table: "credit_report"
+    topic: "cdc_credit_platform_credit_report"
+
+  # 决策日志表变更
+  - database: "credit_platform"
+    table: "decision_log"
+    topic: "cdc_credit_platform_decision_log"
+
+# ==================== 消息格式配置 ====================
+format:
+  # 消息格式: json（JSON格式，便于下游解析）
+  type: "json"
+  # 是否包含表结构变更（DDL）
+  includeDdl: false
+  # 是否包含数据变更（DML）
+  includeDml: true
+  # 是否包含变更前的数据
+  includeBefore: true
+  # 日期格式
+  dateFormat: "yyyy-MM-dd HH:mm:ss"

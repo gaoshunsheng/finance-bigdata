@@ -1,0 +1,44 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: data-service
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 20
+          max-idle: 10
+          min-idle: 5
+
+# HBase 配置
+hbase:
+  zookeeper:
+    quorum: ${HBASE_ZK_QUORUM:localhost}
+    property:
+      clientPort: ${HBASE_ZK_PORT:2181}
+  rpc:
+    timeout: 30000
+
+# Elasticsearch 配置
+elasticsearch:
+  host: ${ES_HOST:localhost}
+  port: ${ES_PORT:9200}
+  scheme: http
+
+# Kafka 配置
+kafka:
+  bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+  consumer:
+    group-id: data-service
+
+# 日志配置
+logging:
+  level:
+    com.credit.platform.data: INFO
+  pattern:
+    dateformat: "yyyy-MM-dd HH:mm:ss.SSS"

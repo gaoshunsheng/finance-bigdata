@@ -1,0 +1,81 @@
+{
+    "job": {
+        "content": [
+            {
+                "reader": {
+                    "name": "mysqlreader",
+                    "parameter": {
+                        "username": "etl_user",
+                        "password": "etl_password_123",
+                        "connection": [
+                            {
+                                "jdbcUrl": ["jdbc:mysql://mysql:3306/credit_platform?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai"],
+                                "table": ["customer_info"],
+                                "querySql": ["SELECT id, customer_id, customer_name, id_card, phone, gender, birth_date, education, marital_status, address, employer, industry, annual_income, source_system, etl_time FROM customer_info WHERE DATE(etl_time) = '${dt}'"]
+                            }
+                        ],
+                        "column": [
+                            "id",
+                            "customer_id",
+                            "customer_name",
+                            "id_card",
+                            "phone",
+                            "gender",
+                            "birth_date",
+                            "education",
+                            "marital_status",
+                            "address",
+                            "employer",
+                            "industry",
+                            "annual_income",
+                            "source_system",
+                            "etl_time"
+                        ],
+                        "where": ""
+                    }
+                },
+                "writer": {
+                    "name": "hdfswriter",
+                    "parameter": {
+                        "defaultFS": "hdfs://namenode:8020",
+                        "fileType": "orc",
+                        "path": "/data/ods/ods_customer_info/dt=${dt}",
+                        "fileName": "ods_customer_info",
+                        "column": [
+                            {"name": "id", "type": "BIGINT"},
+                            {"name": "customer_id", "type": "STRING"},
+                            {"name": "customer_name", "type": "STRING"},
+                            {"name": "id_card", "type": "STRING"},
+                            {"name": "phone", "type": "STRING"},
+                            {"name": "gender", "type": "STRING"},
+                            {"name": "birth_date", "type": "STRING"},
+                            {"name": "education", "type": "STRING"},
+                            {"name": "marital_status", "type": "STRING"},
+                            {"name": "address", "type": "STRING"},
+                            {"name": "employer", "type": "STRING"},
+                            {"name": "industry", "type": "STRING"},
+                            {"name": "annual_income", "type": "DECIMAL"},
+                            {"name": "source_system", "type": "STRING"},
+                            {"name": "etl_time", "type": "TIMESTAMP"}
+                        ],
+                        "writeMode": "overwrite",
+                        "fieldDelimiter": "",
+                        "compress": "SNAPPY",
+                        "encoding": "UTF-8"
+                    }
+                }
+            }
+        ],
+        "setting": {
+            "speed": {
+                "channel": 3,
+                "record": 10000,
+                "byte": 1048576
+            },
+            "errorLimit": {
+                "record": 0,
+                "percentage": 0.02
+            }
+        }
+    }
+}

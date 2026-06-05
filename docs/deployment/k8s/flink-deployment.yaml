@@ -1,0 +1,126 @@
+# ============================================================================
+# Flink JobManager + TaskManager Deployments
+# ============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flink-jobmanager
+  namespace: finance-platform
+  labels:
+    app: flink-jobmanager
+    app.kubernetes.io/part-of: finance-bigdata
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: flink-jobmanager
+  template:
+    metadata:
+      labels:
+        app: flink-jobmanager
+    spec:
+      containers:
+        - name: flink-jobmanager
+          image: flink:1.18.1-java17
+          command: ["jobmanager"]
+          ports:
+            - containerPort: 8081
+            - containerPort: 6123
+          env:
+            - name: FLINK_PROPERTIES
+              value: "jobmanager.rpc.address: flink-jobmanager-svc"
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2000m"
+              memory: "2Gi"
+          livenessProbe:
+            httpGet:
+              path: /config
+              port: 8081
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /config
+              port: 8081
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: flink-jobmanager-svc
+  namespace: finance-platform
+  labels:
+    app: flink-jobmanager
+    app.kubernetes.io/part-of: finance-bigdata
+spec:
+  selector:
+    app: flink-jobmanager
+  ports:
+    - name: webui
+      port: 8081
+      targetPort: 8081
+      protocol: TCP
+    - name: rpc
+      port: 6123
+      targetPort: 6123
+      protocol: TCP
+  type: ClusterIP
+---
+# Flink TaskManager
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flink-taskmanager
+  namespace: finance-platform
+  labels:
+    app: flink-taskmanager
+    app.kubernetes.io/part-of: finance-bigdata
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: flink-taskmanager
+  template:
+    metadata:
+      labels:
+        app: flink-taskmanager
+    spec:
+      containers:
+        - name: flink-taskmanager
+          image: flink:1.18.1-java17
+          command: ["taskmanager"]
+          env:
+            - name: FLINK_PROPERTIES
+              value: |
+                jobmanager.rpc.address: flink-jobmanager-svc
+                taskmanager.numberOfTaskSlots: 4
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2000m"
+              memory: "2Gi"
+          livenessProbe:
+            tcpSocket:
+              port: 6122
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            tcpSocket:
+              port: 6122
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
