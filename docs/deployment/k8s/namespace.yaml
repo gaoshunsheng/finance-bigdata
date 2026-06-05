@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: finance-platform
+  labels:
+    name: finance-platform
+    environment: production
+    app.kubernetes.io/part-of: finance-bigdata-platform

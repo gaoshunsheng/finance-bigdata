@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: decision-admin
+  namespace: finance-platform
+  labels:
+    app: decision-admin
+    app.kubernetes.io/part-of: finance-bigdata-platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: decision-admin
+  template:
+    metadata:
+      labels:
+        app: decision-admin
+    spec:
+      containers:
+        - name: decision-admin
+          image: finance-bigdata/decision-admin:latest
+          ports:
+            - containerPort: 8081
+          envFrom:
+            - configMapRef:
+                name: finance-platform-config
+            - secretRef:
+                name: finance-platform-secrets
+          env:
+            - name: SERVER_PORT
+              value: "8081"
+            - name: SPRING_APPLICATION_NAME
+              value: "decision-admin"
+            - name: JAVA_OPTS
+              value: "-Xms256m -Xmx512m -XX:+UseG1GC -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Dfile.encoding=UTF-8"
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8081
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8081
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          volumeMounts:
+            - name: logs
+              mountPath: /app/logs
+      volumes:
+        - name: logs
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: decision-admin-svc
+  namespace: finance-platform
+  labels:
+    app: decision-admin
+spec:
+  selector:
+    app: decision-admin
+  ports:
+    - port: 8081
+      targetPort: 8081
+      protocol: TCP
+  type: ClusterIP

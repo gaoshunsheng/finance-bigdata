@@ -11,6 +11,7 @@ from app.api.endpoints import (
     export,
     inference,
     monitoring,
+    audit,
 )
 
 router.include_router(data_prep.router, prefix="/data", tags=["数据准备"])
@@ -19,3 +20,4 @@ router.include_router(evaluation.router, prefix="/evaluation", tags=["模型评�
 router.include_router(export.router, prefix="/export", tags=["模型导出"])
 router.include_router(inference.router, prefix="/inference", tags=["推理服务"])
 router.include_router(monitoring.router, prefix="/monitoring", tags=["模型监控"])
+router.include_router(audit.router, tags=["审计日志"])

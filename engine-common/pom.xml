@@ -14,4 +14,12 @@
     <name>Engine Common</name>
     <description>Common models and utilities shared across all modules</description>
 
+    <dependencies>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
 </project>
