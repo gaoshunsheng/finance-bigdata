@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: model-platform
+  namespace: finance-platform
+  labels:
+    app: model-platform
+    app.kubernetes.io/part-of: finance-bigdata-platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: model-platform
+  template:
+    metadata:
+      labels:
+        app: model-platform
+    spec:
+      containers:
+        - name: model-platform
+          image: finance-bigdata/model-platform:latest
+          ports:
+            - containerPort: 8082
+          envFrom:
+            - configMapRef:
+                name: finance-platform-config
+            - secretRef:
+                name: finance-platform-secrets
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2000m"
+              memory: "4Gi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8082
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8082
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          volumeMounts:
+            - name: model-storage
+              mountPath: /app/storage/models
+            - name: model-data
+              mountPath: /app/storage/data
+            - name: model-reports
+              mountPath: /app/storage/reports
+      volumes:
+        - name: model-storage
+          persistentVolumeClaim:
+            claimName: model-storage-pvc
+        - name: model-data
+          persistentVolumeClaim:
+            claimName: model-data-pvc
+        - name: model-reports
+          persistentVolumeClaim:
+            claimName: model-reports-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: model-platform-svc
+  namespace: finance-platform
+  labels:
+    app: model-platform
+spec:
+  selector:
+    app: model-platform
+  ports:
+    - port: 8082
+      targetPort: 8082
+      protocol: TCP
+  type: ClusterIP
