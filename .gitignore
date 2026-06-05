@@ -2,3 +2,13 @@ target/
 .idea/
 *.iml
 .DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+model-platform/app/storage/
+*.onnx
+*.pkl
+*.pickle
