@@ -111,10 +111,14 @@ class FieldEncryptorTest {
     @DisplayName("安全: 密文被篡改时解密失败")
     void security_tamperDetection() {
         String encrypted = encryptor.encrypt("test data");
-        // 篡改密文
-        byte[] bytes = Base64.getDecoder().decode(encrypted);
+        // 剥离版本前缀，篡改 Base64 部分
+        String base64Part = encrypted.startsWith("v1:")
+            ? encrypted.substring(3) : encrypted;
+        byte[] bytes = Base64.getDecoder().decode(base64Part);
         bytes[bytes.length - 2] ^= 0xFF; // 修改最后一个字节
-        String tampered = Base64.getEncoder().encodeToString(bytes);
+        String tamperedBase64 = Base64.getEncoder().encodeToString(bytes);
+        // 恢复版本前缀
+        String tampered = encrypted.startsWith("v1:") ? "v1:" + tamperedBase64 : tamperedBase64;
         assertThrows(FieldEncryptor.DecryptionException.class, () -> encryptor.decrypt(tampered));
     }
 
@@ -187,6 +191,33 @@ class FieldEncryptorTest {
     void isEncrypted_nullEmpty() {
         assertFalse(FieldEncryptor.isEncrypted(null));
         assertFalse(FieldEncryptor.isEncrypted(""));
+    }
+
+    @Test
+    @DisplayName("版本前缀: 加密输出包含 v1: 前缀")
+    void versionPrefix_encryptHasPrefix() {
+        String encrypted = encryptor.encrypt("test");
+        assertTrue(encrypted.startsWith("v1:"), "Encrypted output should have v1: prefix");
+    }
+
+    @Test
+    @DisplayName("版本前缀: 解密兼容无前缀旧格式")
+    void versionPrefix_decryptLegacyFormat() {
+        // 模拟旧格式: 直接构造不带前缀的密文
+        String encrypted = encryptor.encrypt("legacy data");
+        // 剥离前缀模拟旧格式
+        String legacyFormat = encrypted.substring(3);
+        String decrypted = encryptor.decrypt(legacyFormat);
+        assertEquals("legacy data", decrypted);
+    }
+
+    @Test
+    @DisplayName("版本前缀: isEncrypted 兼容新旧格式")
+    void versionPrefix_isEncryptedBothFormats() {
+        String encrypted = encryptor.encrypt("test");
+        assertTrue(FieldEncryptor.isEncrypted(encrypted), "v1: prefixed should be detected");
+        String legacyFormat = encrypted.substring(3);
+        assertTrue(FieldEncryptor.isEncrypted(legacyFormat), "Legacy format should be detected");
     }
 
     // ========== 并发安全性 ==========

@@ -42,8 +42,8 @@ public final class FieldEncryptor {
     private static final int TAG_LENGTH = 128;      // 认证标签位数
     private static final int KEY_LENGTH = 32;       // AES-256 密钥长度 (字节)
 
-    // TODO: 密钥轮转支持 — 当前仅支持单一密钥，需增加多密钥版本管理，
-    //       支持新数据用新密钥加密、旧密文用旧密钥解密的平滑轮转机制
+    /** 密钥版本前缀，用于支持密钥轮转。新密文格式: v1:Base64(IV||密文||tag)，旧格式: Base64(IV||密文||tag) */
+    static final String KEY_VERSION_PREFIX = "v1:";
 
     private final SecretKeySpec keySpec;
     private final SecureRandom secureRandom;
@@ -84,11 +84,11 @@ public final class FieldEncryptor {
     /**
      * 加密明文字符串。
      * <p>
-     * 输出格式: Base64(IV || 密文 || 认证标签)
+     * 输出格式: v1:Base64(IV || 密文 || 认证标签)
      * </p>
      *
      * @param plaintext 明文
-     * @return Base64 编码的密文 (包含 IV)
+     * @return 版本前缀 + Base64 编码的密文 (包含 IV)
      */
     public String encrypt(String plaintext) {
         if (plaintext == null) return null;
@@ -109,7 +109,7 @@ public final class FieldEncryptor {
             System.arraycopy(iv, 0, combined, 0, iv.length);
             System.arraycopy(ciphertext, 0, combined, iv.length, ciphertext.length);
 
-            return Base64.getEncoder().encodeToString(combined);
+            return KEY_VERSION_PREFIX + Base64.getEncoder().encodeToString(combined);
         } catch (Exception e) {
             throw new EncryptionException("AES encryption failed: " + e.getMessage(), e);
         }
@@ -117,8 +117,14 @@ public final class FieldEncryptor {
 
     /**
      * 解密密文字符串。
+     * <p>
+     * 支持两种格式：
+     * <ul>
+     *   <li>v1:Base64(IV || 密文 || 认证标签) — 带版本前缀的新格式</li>
+     *   <li>Base64(IV || 密文 || 认证标签) — 无前缀的旧格式 (向后兼容)</li>
+     * </ul>
      *
-     * @param ciphertext Base64 编码的密文 (包含 IV)
+     * @param ciphertext 版本前缀 + Base64 编码的密文，或纯 Base64 密文 (旧格式)
      * @return 明文
      * @throws DecryptionException 如果解密失败 (密钥错误或数据被篡改)
      */
@@ -126,8 +132,14 @@ public final class FieldEncryptor {
         if (ciphertext == null) return null;
         if (ciphertext.isEmpty()) return "";
 
+        // 剥离版本前缀 (向后兼容无前缀的旧密文)
+        String base64Data = ciphertext;
+        if (ciphertext.startsWith(KEY_VERSION_PREFIX)) {
+            base64Data = ciphertext.substring(KEY_VERSION_PREFIX.length());
+        }
+
         try {
-            byte[] combined = Base64.getDecoder().decode(ciphertext);
+            byte[] combined = Base64.getDecoder().decode(base64Data);
 
             if (combined.length < IV_LENGTH + 16) {
                 throw new DecryptionException("Ciphertext too short");
@@ -165,7 +177,12 @@ public final class FieldEncryptor {
     /**
      * 检查字符串是否为加密格式。
      * <p>
-     * 验证规则：必须是有效 Base64，解码后长度至少为 IV(12) + GCM认证标签(16) + 最短密文(1) = 29 字节，
+     * 支持两种格式：
+     * <ul>
+     *   <li>v1:Base64(...) — 带版本前缀的新格式</li>
+     *   <li>Base64(...) — 无前缀的旧格式</li>
+     * </ul>
+     * 验证规则：Base64 部分解码后长度至少为 IV(12) + GCM认证标签(16) + 最短密文(1) = 29 字节，
      * 且前 IV_LENGTH 字节作为 IV 不应全部为零（排除普通长字符串的误判）。
      * </p>
      *
@@ -174,10 +191,17 @@ public final class FieldEncryptor {
      */
     public static boolean isEncrypted(String value) {
         if (value == null || value.isEmpty()) return false;
+
+        // 剥离版本前缀
+        String base64Part = value;
+        if (value.startsWith(KEY_VERSION_PREFIX)) {
+            base64Part = value.substring(KEY_VERSION_PREFIX.length());
+        }
+
         // 加密输出为 Base64，必须只包含 Base64 字符 (允许末尾有 = 填充)
-        if (!value.matches("^[A-Za-z0-9+/]+=*$")) return false;
+        if (!base64Part.matches("^[A-Za-z0-9+/]+=*$")) return false;
         try {
-            byte[] decoded = Base64.getDecoder().decode(value);
+            byte[] decoded = Base64.getDecoder().decode(base64Part);
             // 最短有效密文 = IV(12) + GCM tag(16) + 至少1字节密文 = 29
             if (decoded.length <= IV_LENGTH + TAG_LENGTH / 8) return false;
             // 检查前 IV_LENGTH 字节不全为零（真实 IV 由 SecureRandom 生成，几乎不可能全零）

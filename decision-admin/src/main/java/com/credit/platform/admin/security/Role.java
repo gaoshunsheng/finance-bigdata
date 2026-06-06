@@ -77,4 +77,19 @@ public enum Role {
     public Set<Permission> getPermissions() {
         return permissions;
     }
+
+    /**
+     * 安全解析角色名称，不区分大小写。
+     *
+     * @param name 角色名称 (如 "ADMIN", "admin", "Admin")
+     * @return 对应的 Role，无效输入返回 null
+     */
+    public static Role parse(String name) {
+        if (name == null) return null;
+        try {
+            return valueOf(name.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
 }

@@ -126,6 +126,18 @@ public class UserService {
     }
 
     /**
+     * 更新最后登录时间并持久化。
+     *
+     * @param username 用户名
+     */
+    public void updateLastLogin(String username) {
+        User user = userRepository.findByUsername(username)
+            .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
+        user.setLastLoginAt(java.time.LocalDateTime.now());
+        userRepository.save(user);
+    }
+
+    /**
      * 获取 PasswordEncoder 实例。
      */
     public PasswordEncoder getPasswordEncoder() {

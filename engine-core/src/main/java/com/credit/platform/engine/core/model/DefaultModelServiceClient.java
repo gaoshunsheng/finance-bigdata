@@ -7,14 +7,14 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.util.LinkedHashMap;
-import java.util.Map;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * 默认模型推理服务客户端实现。
  * <p>
  * 使用 JDK 内置的 {@link HttpURLConnection} 发起 REST 调用，
- * 无需引入额外的 HTTP 客户端依赖，保持 engine-core 的纯 Java 特性。
+ * 使用 Jackson 进行 JSON 序列化/反序列化。
  * </p>
  *
  * <p>功能特性:
@@ -32,9 +32,16 @@ public class DefaultModelServiceClient implements ModelServiceClient {
     private static final int HTTP_OK = 200;
 
     private final ModelConfig config;
+    private final ObjectMapper objectMapper;
 
     public DefaultModelServiceClient(ModelConfig config) {
         this.config = config;
+        this.objectMapper = new ObjectMapper();
+    }
+
+    public DefaultModelServiceClient(ModelConfig config, ObjectMapper objectMapper) {
+        this.config = config;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -85,7 +92,6 @@ public class DefaultModelServiceClient implements ModelServiceClient {
         } catch (Exception e) {
             return false;
         } finally {
-            // 安全修复: 关闭连接释放资源
             if (conn != null) {
                 conn.disconnect();
             }
@@ -108,8 +114,8 @@ public class DefaultModelServiceClient implements ModelServiceClient {
         conn.setRequestProperty("Accept", CONTENT_TYPE_JSON);
         conn.setDoOutput(true);
 
-        // 发送请求体
-        String requestBody = serializeRequest(request);
+        // 发送请求体 (Jackson 序列化)
+        String requestBody = objectMapper.writeValueAsString(new ModelServiceRequestDTO(request));
         long startMs = System.currentTimeMillis();
         try (OutputStream os = conn.getOutputStream()) {
             os.write(requestBody.getBytes(StandardCharsets.UTF_8));
@@ -177,162 +183,18 @@ public class DefaultModelServiceClient implements ModelServiceClient {
         return "HIGH_RISK";
     }
 
-    // ========== 序列化 (简单 JSON 手工拼接，避免额外依赖) ==========
+    // ========== Jackson 反序列化 ==========
 
-    private String serializeRequest(ModelRequest request) {
-        StringBuilder sb = new StringBuilder("{\"modelId\":\"")
-            .append(escapeJson(request.getModelId())).append("\"");
-        if (request.getRequestId() != null) {
-            sb.append(",\"requestId\":\"").append(escapeJson(request.getRequestId())).append("\"");
-        }
-        sb.append(",\"features\":{");
-        Map<String, Object> features = request.getFeatures();
-        int i = 0;
-        for (Map.Entry<String, Object> entry : features.entrySet()) {
-            if (i > 0) sb.append(',');
-            sb.append('"').append(escapeJson(entry.getKey())).append("\":");
-            sb.append(valueToJson(entry.getValue()));
-            i++;
-        }
-        sb.append("}}");
-        return sb.toString();
-    }
-
-    private String valueToJson(Object value) {
-        if (value == null) return "null";
-        if (value instanceof Number) return value.toString();
-        if (value instanceof Boolean) return value.toString();
-        return "\"" + escapeJson(value.toString()) + "\"";
-    }
-
-    private String escapeJson(String s) {
-        if (s == null) return "";
-        StringBuilder sb = new StringBuilder(s.length());
-        for (int i = 0; i < s.length(); i++) {
-            char c = s.charAt(i);
-            switch (c) {
-                case '\\' -> sb.append("\\\\");
-                case '"' -> sb.append("\\\"");
-                case '\n' -> sb.append("\\n");
-                case '\r' -> sb.append("\\r");
-                case '\t' -> sb.append("\\t");
-                case '\b' -> sb.append("\\b");
-                case '\f' -> sb.append("\\f");
-                default -> {
-                    if (c < 0x20) {
-                        sb.append(String.format("\\u%04x", (int) c));
-                    } else {
-                        sb.append(c);
-                    }
-                }
-            }
-        }
-        return sb.toString();
-    }
-
-    // ========== 反序列化 ==========
-
-    private ModelResponse deserializeResponse(String modelId, String json, long latencyMs) {
-        // 简单 JSON 解析 (无依赖场景)
-        double score = extractDouble(json, "score");
-        double probability = extractDouble(json, "probability");
-        String label = extractString(json, "label");
-
+    private ModelResponse deserializeResponse(String modelId, String json, long latencyMs) throws IOException {
+        ModelServiceResponseDTO dto = objectMapper.readValue(json, ModelServiceResponseDTO.class);
         return ModelResponse.builder()
             .modelId(modelId)
-            .score(score)
-            .probability(probability)
-            .label(label != null ? label : scoreToLabel(score))
+            .score(dto.getScore())
+            .probability(dto.getProbability())
+            .label(dto.getLabel() != null ? dto.getLabel() : scoreToLabel(dto.getScore()))
             .success(true)
             .latencyMs(latencyMs)
             .build();
-    }
-
-    /**
-     * 提取 JSON 数值 — 从最外层匹配开始查找，避免嵌套 key 错位。
-     */
-    private double extractDouble(String json, String key) {
-        String pattern = "\"" + key + "\":";
-        // 安全修复: 从最外层匹配，跳过嵌套对象中的同名 key
-        int idx = findTopLevelKey(json, pattern);
-        if (idx < 0) return 0.0;
-        int start = idx + pattern.length();
-        int end = start;
-        while (end < json.length() && (Character.isDigit(json.charAt(end))
-            || json.charAt(end) == '.' || json.charAt(end) == '-' || json.charAt(end) == 'e' || json.charAt(end) == 'E')) {
-            end++;
-        }
-        try {
-            return Double.parseDouble(json.substring(start, end));
-        } catch (NumberFormatException e) {
-            return 0.0;
-        }
-    }
-
-    /**
-     * 提取 JSON 字符串 — 处理转义引号。
-     */
-    private String extractString(String json, String key) {
-        String pattern = "\"" + key + "\":\"";
-        int idx = findTopLevelKey(json, pattern);
-        if (idx < 0) return null;
-        int start = idx + pattern.length();
-        // 安全修复: 处理转义引号，不提前终止
-        int end = start;
-        while (end < json.length()) {
-            if (json.charAt(end) == '\\') {
-                end += 2; // 跳过转义字符
-            } else if (json.charAt(end) == '"') {
-                break;
-            } else {
-                end++;
-            }
-        }
-        return end > start ? unescapeJson(json.substring(start, end)) : null;
-    }
-
-    /**
-     * 在 JSON 中查找最外层的 key 位置（深度 0 或 1）。
-     * 防止嵌套对象中的同名 key 导致错位。
-     */
-    private int findTopLevelKey(String json, String pattern) {
-        int depth = 0;
-        for (int i = 0; i <= json.length() - pattern.length(); i++) {
-            char c = json.charAt(i);
-            if (c == '{' || c == '[') depth++;
-            else if (c == '}' || c == ']') depth--;
-            else if (depth <= 1 && json.startsWith(pattern, i)) {
-                return i;
-            }
-        }
-        return -1;
-    }
-
-    /**
-     * 反转义 JSON 字符串中的转义序列。
-     */
-    private String unescapeJson(String s) {
-        if (s == null) return null;
-        StringBuilder sb = new StringBuilder(s.length());
-        for (int i = 0; i < s.length(); i++) {
-            char c = s.charAt(i);
-            if (c == '\\' && i + 1 < s.length()) {
-                char next = s.charAt(i + 1);
-                switch (next) {
-                    case '"' -> { sb.append('"'); i++; }
-                    case '\\' -> { sb.append('\\'); i++; }
-                    case 'n' -> { sb.append('\n'); i++; }
-                    case 'r' -> { sb.append('\r'); i++; }
-                    case 't' -> { sb.append('\t'); i++; }
-                    case 'b' -> { sb.append('\b'); i++; }
-                    case 'f' -> { sb.append('\f'); i++; }
-                    default -> sb.append(c);
-                }
-            } else {
-                sb.append(c);
-            }
-        }
-        return sb.toString();
     }
 
     // ========== 工具方法 ==========
