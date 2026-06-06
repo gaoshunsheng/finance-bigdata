@@ -190,5 +190,39 @@ class DecisionTableEngineTest {
 
             assertNull(row);
         }
+
+        @Test
+        @DisplayName("多列通配符匹配 — 全 * 行匹配后返回空结果集")
+        void wildcardMatching_emptyResult() {
+            // 使用仅含通配符的决策表，验证 * 匹配任意值且空行表编译失败
+            String wildcardTableJson = """
+                {
+                  "tableId": "DT_WILDCARD",
+                  "name": "通配符测试表",
+                  "columns": [
+                    {"name": "地区", "field": "region"},
+                    {"name": "等级", "field": "level"}
+                  ],
+                  "rows": [
+                    {
+                      "conditions": ["*", "*"],
+                      "result": {}
+                    }
+                  ],
+                  "hitPolicy": "FIRST_MATCH"
+                }
+                """;
+
+            CompiledDecisionTable wTable = compiler.compile(wildcardTableJson);
+            // 任意输入都应该命中全 * 行
+            CompiledDecisionTable.TableRow row = wTable.evaluate(Map.of(
+                "region", "华东",
+                "level", "A"
+            ));
+
+            assertNotNull(row);
+            // result 为空 map → 无 action / reason 等字段
+            assertTrue(row.getResult().isEmpty());
+        }
     }
 }

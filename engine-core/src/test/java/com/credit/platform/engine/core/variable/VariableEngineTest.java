@@ -232,6 +232,39 @@ class VariableEngineTest {
             // 这里用 execute 可能抛异常
             assertNotNull(ctx);  // 不崩溃即可
         }
+
+        @Test
+        @DisplayName("循环依赖时 resolve 返回 null 而非无限递归")
+        void circularDependency_resolution() {
+            // 创建独立的 registry 和 engine 避免影响其他测试
+            VariableRegistry circularRegistry = new VariableRegistry();
+            circularRegistry.register(VariableDefinition.builder()
+                .varId("x").name("X").layer(VariableLayer.DERIVED)
+                .expression("y + 1").dependencies(Set.of("y")).build());
+            circularRegistry.register(VariableDefinition.builder()
+                .varId("y").name("Y").layer(VariableLayer.DERIVED)
+                .expression("z + 1").dependencies(Set.of("z")).build());
+            circularRegistry.register(VariableDefinition.builder()
+                .varId("z").name("Z").layer(VariableLayer.DERIVED)
+                .expression("x + 1").dependencies(Set.of("x")).build());
+
+            // 先确认循环依赖能被检测到
+            assertFalse(circularRegistry.detectCircularDependencies().isEmpty());
+
+            // 尝试解析循环依赖变量 — 应安全返回而非无限递归
+            VariableEngine circularEngine = new VariableEngine(circularRegistry)
+                .setDerivedProvider(expressionEngine);
+
+            VariableResolveContext ctx = circularEngine.resolve(
+                Set.of("x"),
+                "REQ_CIRCULAR",
+                Map.of()
+            );
+
+            assertNotNull(ctx);  // 不崩溃
+            // 循环依赖变量无法解析 → 返回 null
+            assertNull(ctx.get("x"));
+        }
     }
 
     @Nested

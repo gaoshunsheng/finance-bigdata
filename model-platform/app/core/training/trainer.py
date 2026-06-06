@@ -11,6 +11,7 @@ from typing import Any, Optional
 
 import numpy as np
 import pandas as pd
+from loguru import logger
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import GridSearchCV, cross_val_score
 from xgboost import XGBClassifier
@@ -30,13 +31,13 @@ class ModelTrainer:
         Args:
             sample_manager: 样本管理器实例, 为 None 时自动创建新实例
         """
-        # TODO: [ARCHITECTURE] 当前为纯内存存储，进程重启后所有模型丢失。
-        #   需要接入持久化存储（如数据库、文件系统或模型仓库），
-        #   至少在模型训练完成后将 model_record 持久化，
-        #   启动时从存储加载已有模型索引。
+        # 内存缓存: model_id -> model_record
         self._models: dict[str, dict[str, Any]] = {}
         self._id_counter: int = 0
         self._sample_manager: SampleManager = sample_manager or SampleManager()
+
+        # 启动时从数据库加载已有模型索引（优雅降级: DB 不可用时不影响启动）
+        self._load_from_db()
 
     # ------------------------------------------------------------------
     # ID 生成
@@ -46,6 +47,43 @@ class ModelTrainer:
         """生成唯一模型 ID, 格式 model_001"""
         self._id_counter += 1
         return f"model_{self._id_counter:03d}"
+
+    # ------------------------------------------------------------------
+    # 数据库持久化
+    # ------------------------------------------------------------------
+
+    def _load_from_db(self) -> None:
+        """从数据库加载已有模型索引到内存缓存。"""
+        try:
+            from app.db.repository import ModelRepository
+            db_index = ModelRepository.load_index()
+            if db_index:
+                self._models.update(db_index)
+                # 更新 ID 计数器，避免与已存在的 ID 冲突
+                max_num = 0
+                for mid in db_index:
+                    if mid.startswith("model_"):
+                        try:
+                            num = int(mid.split("_")[1])
+                            max_num = max(max_num, num)
+                        except (IndexError, ValueError):
+                            pass
+                self._id_counter = max(self._id_counter, max_num)
+                logger.info(f"从数据库加载了 {len(db_index)} 条模型记录")
+        except Exception as e:
+            logger.warning(f"从数据库加载模型索引失败 (不影响运行): {e}")
+
+    def _persist_to_db(self, model_record: dict[str, Any]) -> None:
+        """将模型记录持久化到数据库（失败时仅记录日志，不影响训练流程）。"""
+        try:
+            from app.db.repository import ModelRepository
+            success = ModelRepository.save(model_record)
+            if success:
+                logger.info(f"模型记录已持久化: {model_record.get('model_id')}")
+            else:
+                logger.warning(f"模型记录持久化未成功: {model_record.get('model_id')}")
+        except Exception as e:
+            logger.warning(f"模型记录持久化异常 (不影响运行): {e}")
 
     # ------------------------------------------------------------------
     # 逻辑回归
@@ -438,6 +476,9 @@ class ModelTrainer:
         }
 
         self._models[model_id] = model_record
+
+        # 持久化到数据库（异步、优雅降级）
+        self._persist_to_db(model_record)
 
         # 返回时去掉内部字段
         return {

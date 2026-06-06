@@ -15,6 +15,18 @@ from app.core.inference.inference_service import inference_service
 async def lifespan(app: FastAPI):
     """应用生命周期管理 — 替代弃用的 on_event 装饰器"""
     logger.info("Model Platform starting up...")
+
+    # 初始化数据库（创建表、加载已有数据），DB 不可用时不影响启动
+    try:
+        from app.db.session import init_db
+        db_ok = init_db()
+        if db_ok:
+            logger.info("数据库初始化成功")
+        else:
+            logger.warning("数据库不可用，应用将以纯内存模式运行")
+    except Exception as e:
+        logger.warning(f"数据库初始化异常 (不影响运行): {e}")
+
     inference_service.clear_cache()
     yield
     # 关闭时清理资源

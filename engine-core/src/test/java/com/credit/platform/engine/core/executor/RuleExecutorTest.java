@@ -329,6 +329,78 @@ class RuleExecutorTest {
         }
     }
 
+    // ==================== 嵌套 AND/OR + null 处理测试 ====================
+
+    @Nested
+    @DisplayName("嵌套 AND/OR 逻辑与 null 处理")
+    class NestedLogicTest {
+
+        @Test
+        @DisplayName("嵌套 AND/OR 逻辑 — null 值不影响组合条件求值")
+        void nestedAndOr_withNullHandling() {
+            // 规则: (age > 60 OR age < 22) AND (blacklist_hit == true OR overdue_count_6m > 3)
+            // 包含嵌套 AND(OR, OR) 结构，测试 null 变量的安全处理
+            CompiledConditionRule rule = compiler.compileConditionRule("""
+                {
+                  "ruleId": "R_NESTED_001",
+                  "name": "嵌套逻辑准入检查",
+                  "priority": 100,
+                  "conditions": {
+                    "operator": "AND",
+                    "operands": [
+                      {
+                        "operator": "OR",
+                        "operands": [
+                          {"field": "age", "op": "GT", "value": 60},
+                          {"field": "age", "op": "LT", "value": 22}
+                        ]
+                      },
+                      {
+                        "operator": "OR",
+                        "operands": [
+                          {"field": "blacklist_hit", "op": "EQ", "value": true},
+                          {"field": "overdue_count_6m", "op": "GT", "value": 3}
+                        ]
+                      }
+                    ]
+                  },
+                  "actions": [{"type": "REJECT", "reason": "嵌套逻辑命中", "code": "NESTED_001"}]
+                }
+                """);
+
+            // 场景1: 年龄 < 22 且 命中黑名单 → true
+            ExecutionContext ctx1 = ExecutionContext.create(Map.of(
+                "age", 18, "blacklist_hit", true, "overdue_count_6m", 0
+            ));
+            assertTrue(executor.evaluate(rule, ctx1));
+
+            // 场景2: 年龄 > 60 且 逾期次数 > 3 → true
+            ExecutionContext ctx2 = ExecutionContext.create(Map.of(
+                "age", 65, "blacklist_hit", false, "overdue_count_6m", 5
+            ));
+            assertTrue(executor.evaluate(rule, ctx2));
+
+            // 场景3: 年龄 < 22 但 blacklist_hit=false 且 overdue_count_6m=1 → false (AND 不满足右半)
+            ExecutionContext ctx3 = ExecutionContext.create(Map.of(
+                "age", 20, "blacklist_hit", false, "overdue_count_6m", 1
+            ));
+            assertFalse(executor.evaluate(rule, ctx3));
+
+            // 场景4: blacklist_hit=true 但 age=30 (不满足左半 OR) → false
+            ExecutionContext ctx4 = ExecutionContext.create(Map.of(
+                "age", 30, "blacklist_hit", true, "overdue_count_6m", 0
+            ));
+            assertFalse(executor.evaluate(rule, ctx4));
+
+            // 场景5: overdue_count_6m 为 null (缺失) — 安全处理
+            ExecutionContext ctx5 = ExecutionContext.create(new HashMap<>());
+            ctx5.setVariable("age", 18);
+            ctx5.setVariable("blacklist_hit", false);
+            // overdue_count_6m 未设置 → null
+            assertFalse(executor.evaluate(rule, ctx5));
+        }
+    }
+
     // ==================== 端到端集成测试 ====================
 
     @Nested
