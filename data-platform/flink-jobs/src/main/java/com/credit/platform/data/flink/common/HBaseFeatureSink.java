@@ -1,8 +1,7 @@
 package com.credit.platform.data.flink.common;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Connection;
@@ -24,7 +23,7 @@ import java.util.Map;
  *
  * <p>连接失败时日志告警并跳过，保证作业容错运行。
  */
-public class HBaseFeatureSink implements SinkFunction<Map<String, Object>> {
+public class HBaseFeatureSink extends RichSinkFunction<Map<String, Object>> {
 
     private static final Logger log = LoggerFactory.getLogger(HBaseFeatureSink.class);
     private static final long serialVersionUID = 1L;
@@ -52,7 +51,7 @@ public class HBaseFeatureSink implements SinkFunction<Map<String, Object>> {
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
+    public void open(org.apache.flink.configuration.Configuration parameters) throws Exception {
         this.objectMapper = new ObjectMapper();
         try {
             org.apache.hadoop.conf.Configuration config = HBaseConfiguration.create();

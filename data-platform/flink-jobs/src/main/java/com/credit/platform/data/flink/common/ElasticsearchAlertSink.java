@@ -1,8 +1,7 @@
 package com.credit.platform.data.flink.common;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,7 +25,7 @@ import java.util.Map;
  *
  * <p>连接失败时日志告警并跳过，保证作业容错运行。
  */
-public class ElasticsearchAlertSink implements SinkFunction<Map<String, Object>> {
+public class ElasticsearchAlertSink extends RichSinkFunction<Map<String, Object>> {
 
     private static final Logger log = LoggerFactory.getLogger(ElasticsearchAlertSink.class);
     private static final long serialVersionUID = 1L;
@@ -50,7 +49,7 @@ public class ElasticsearchAlertSink implements SinkFunction<Map<String, Object>>
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
+    public void open(org.apache.flink.configuration.Configuration parameters) throws Exception {
         this.objectMapper = new ObjectMapper();
         this.httpClient = HttpClient.newHttpClient();
         log.info("[ElasticsearchAlertSink] 初始化完成: {}:{}", esHost, esPort);

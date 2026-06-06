@@ -2,6 +2,7 @@ package com.credit.platform.server.service;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.aggregations.Aggregation;
+import co.elastic.clients.elasticsearch._types.aggregations.CalendarInterval;
 import co.elastic.clients.elasticsearch._types.aggregations.DateHistogramBucket;
 import co.elastic.clients.elasticsearch._types.aggregations.StringTermsBucket;
 import co.elastic.clients.elasticsearch.core.SearchRequest;
@@ -36,14 +37,10 @@ public class DecisionReportService {
 
     /**
      * 获取每日决策统计。
-     *
-     * @param start 开始日期 (inclusive)
-     * @param end   结束日期 (inclusive)
-     * @return 每日统计列表 [{date, total, approve, reject, manual, avgScore}]
      */
     public List<Map<String, Object>> getDailyStats(LocalDate start, LocalDate end) {
         try {
-            String[] indices = buildIndicesBetween(start, end);
+            List<String> indices = Arrays.asList(buildIndicesBetween(start, end));
             ElasticsearchClient client = logRepository.getEsClient();
 
             SearchRequest request = SearchRequest.of(s -> s
@@ -56,16 +53,14 @@ public class DecisionReportService {
                     .aggregations("daily", Aggregation.of(a -> a
                             .dateHistogram(dh -> dh
                                     .field("timestamp")
-                                    .calendarInterval(ca -> ca.month(1))
+                                    .calendarInterval(CalendarInterval.Month)
                                     .format("yyyy-MM-dd")
-                                    .minDocCount(0)))
+                                    .minDocCount(0))
                             .aggregations("by_result", Aggregation.of(aa -> aa
-                                    .terms(t -> t.field("decisionResult").size(10)))
-                            )
+                                    .terms(t -> t.field("decisionResult").size(10))))
                             .aggregations("avg_score", Aggregation.of(aa -> aa
-                                    .avg(avg -> avg.field("score")))
-                            )
-                    ));
+                                    .avg(avg -> avg.field("score"))))
+                    )));
 
             SearchResponse<DecisionLogDocument> response = client.search(request, DecisionLogDocument.class);
 
@@ -90,10 +85,11 @@ public class DecisionReportService {
                     dayStat.put("reject", reject);
                     dayStat.put("manual", manual);
 
-                    if (bucket.aggregations() != null && bucket.aggregations().get("avg_score") != null
-                            && bucket.aggregations().get("avg_score").avg().value() != null
-                            && !Double.isNaN(bucket.aggregations().get("avg_score").avg().value())) {
-                        dayStat.put("avgScore", bucket.aggregations().get("avg_score").avg().value());
+                    if (bucket.aggregations() != null && bucket.aggregations().get("avg_score") != null) {
+                        Double avgVal = bucket.aggregations().get("avg_score").avg().value();
+                        if (avgVal != null && !Double.isNaN(avgVal)) {
+                            dayStat.put("avgScore", avgVal);
+                        }
                     }
                     results.add(dayStat);
                 }
@@ -117,8 +113,8 @@ public class DecisionReportService {
                     .index(index)
                     .size(0)
                     .aggregations("risk_levels", Aggregation.of(a -> a
-                            .terms(t -> t.field("riskLevel").size(20)))
-                    ));
+                            .terms(t -> t.field("riskLevel").size(20))))
+            );
 
             SearchResponse<DecisionLogDocument> response = client.search(request, DecisionLogDocument.class);
 
@@ -150,8 +146,8 @@ public class DecisionReportService {
                     .index(index)
                     .size(0)
                     .aggregations("top_rules", Aggregation.of(a -> a
-                            .terms(t -> t.field("rulesExecuted").size(limit)))
-                    ));
+                            .terms(t -> t.field("rulesExecuted").size(limit))))
+            );
 
             SearchResponse<DecisionLogDocument> response = client.search(request, DecisionLogDocument.class);
 

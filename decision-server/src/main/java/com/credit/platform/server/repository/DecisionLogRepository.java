@@ -1,7 +1,8 @@
 package com.credit.platform.server.repository;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import co.elastic.clients.elasticsearch._types.query_d.Query;
+import co.elastic.clients.elasticsearch._types.SortOrder;
+import co.elastic.clients.elasticsearch._types.query_dsl.Query;
 import co.elastic.clients.elasticsearch.core.IndexRequest;
 import co.elastic.clients.elasticsearch.core.SearchRequest;
 import co.elastic.clients.elasticsearch.core.SearchResponse;
@@ -104,7 +105,7 @@ public class DecisionLogRepository {
                     .query(query)
                     .from(from)
                     .size(size)
-                    .sort(so -> so.field(f -> f.field("timestamp").order(co.elastic.clients.elasticsearch._types.SortOrder.Desc)))
+                    .sort(so -> so.field(f -> f.field("timestamp").order(SortOrder.Desc)))
             );
             SearchResponse<DecisionLogDocument> response = esClient.search(request, DecisionLogDocument.class);
             List<DecisionLogDocument> results = new ArrayList<>();

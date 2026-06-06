@@ -192,7 +192,7 @@ public class DecisionService {
         // 持久化到 ES
         saveDecisionLog(decisionId, dag.getRuleId(), traceId, finalResult.name(),
             score != null ? score : 0, rejectReason, flowResult.getDecisionPath(),
-            ctx.getVariables(), Map.of(), durationMs);
+            ctx.getAllVariables(), Map.of(), durationMs);
 
         // 构建响应
         return switch (finalResult) {
