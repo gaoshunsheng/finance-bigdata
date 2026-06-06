@@ -19,4 +19,4 @@ RUN mkdir -p /app/storage/models /app/storage/data /app/storage/reports
 
 EXPOSE 8082 50051
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8082"]
+CMD uvicorn app.main:app --host ${APP_HOST:-0.0.0.0} --port ${APP_PORT:-8082} --workers ${APP_WORKERS:-1}
