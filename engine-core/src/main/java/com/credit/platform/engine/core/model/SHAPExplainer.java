@@ -25,6 +25,9 @@ public class SHAPExplainer {
     private final ModelServiceClient modelServiceClient;
     private final boolean enabled;
     private final double baseValue;
+    private final double featureMax;         // 归一化除数 — 特征最大值 (默认 100.0)
+    private final double maxAmplification;   // 放大倍数上限 (默认 2.0)
+    private final double minFactor;          // 缩放因子下限 (默认 0.1)
 
     /**
      * 创建 SHAP 解释器。
@@ -44,9 +47,28 @@ public class SHAPExplainer {
      * @param baseValue          模型基线值 (通常为训练集平均预测值)
      */
     public SHAPExplainer(ModelServiceClient modelServiceClient, boolean enabled, double baseValue) {
+        this(modelServiceClient, enabled, baseValue, 100.0, 2.0, 0.1);
+    }
+
+    /**
+     * 创建 SHAP 解释器，指定全部参数。
+     *
+     * @param modelServiceClient 模型服务客户端
+     * @param enabled            是否启用 SHAP 解释
+     * @param baseValue          模型基线值
+     * @param featureMax         特征归一化除数 (特征值域最大值)
+     * @param maxAmplification   放大倍数上限
+     * @param minFactor          缩放因子下限
+     */
+    public SHAPExplainer(ModelServiceClient modelServiceClient, boolean enabled,
+                         double baseValue, double featureMax,
+                         double maxAmplification, double minFactor) {
         this.modelServiceClient = modelServiceClient;
         this.enabled = enabled;
         this.baseValue = baseValue;
+        this.featureMax = featureMax;
+        this.maxAmplification = maxAmplification;
+        this.minFactor = minFactor;
     }
 
     /**
@@ -116,16 +138,16 @@ public class SHAPExplainer {
     /**
      * 根据特征值缩放贡献度。
      * <p>
-     * 简单线性缩放: 归一化后的贡献度。
+     * 简单线性缩放: 归一化后的贡献度。参数通过构造函数配置。
      * 生产环境应替换为真实的 SHAP 值。
      * </p>
      */
     private double scaleContribution(Object value, double baseContribution) {
         if (value instanceof Number) {
             double numValue = Math.abs(((Number) value).doubleValue());
-            // 归一化: 值越大贡献越大 (简单策略)
-            double factor = Math.min(numValue / 100.0, 2.0); // 限制放大倍数
-            return baseContribution * Math.max(factor, 0.1);
+            // 归一化: 值越大贡献越大，使用可配置参数
+            double factor = Math.min(numValue / featureMax, maxAmplification);
+            return baseContribution * Math.max(factor, minFactor);
         }
         return baseContribution;
     }
@@ -160,4 +182,7 @@ public class SHAPExplainer {
 
     public boolean isEnabled() { return enabled; }
     public double getBaseValue() { return baseValue; }
+    public double getFeatureMax() { return featureMax; }
+    public double getMaxAmplification() { return maxAmplification; }
+    public double getMinFactor() { return minFactor; }
 }

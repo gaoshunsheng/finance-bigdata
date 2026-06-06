@@ -305,10 +305,12 @@ class SecurityTest {
         @Test
         @DisplayName("USVC-08: 初始化默认管理员")
         void initDefaultAdmin() {
+            // P0 安全修复: 密码从环境变量读取或随机生成，测试中验证用户创建即可
             userService.initDefaultAdmin();
             User admin = userService.findByUsername("admin");
             assertEquals(Role.ADMIN, admin.getRole());
-            assertTrue(userService.checkPassword("admin", "admin123"));
+            assertNotNull(admin.getPassword());
+            assertTrue(admin.isEnabled());
         }
 
         @Test

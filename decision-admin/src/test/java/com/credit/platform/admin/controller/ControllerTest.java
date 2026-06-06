@@ -660,6 +660,24 @@ class ControllerTest {
 
         // ---------- change-password ----------
 
+        @BeforeEach
+        void setupSecurityContext() {
+            // 设置模拟认证上下文 (changePassword 需要)
+            Authentication auth = Mockito.mock(Authentication.class);
+            when(auth.getName()).thenReturn("admin");
+            var authorities = java.util.List.<org.springframework.security.core.GrantedAuthority>of(
+                new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_ADMIN"));
+            Mockito.doReturn(authorities).when(auth).getAuthorities();
+            SecurityContext ctx = Mockito.mock(SecurityContext.class);
+            when(ctx.getAuthentication()).thenReturn(auth);
+            SecurityContextHolder.setContext(ctx);
+        }
+
+        @AfterEach
+        void clearSecurityContext() {
+            SecurityContextHolder.clearContext();
+        }
+
         @Test
         void changePassword_success_returnsOk() {
             var response = controller.changePassword(

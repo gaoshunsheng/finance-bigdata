@@ -45,9 +45,7 @@ public class AuthController {
             }
 
             // 更新最后登录时间并持久化
-            user.setLastLoginAt(java.time.LocalDateTime.now());
-            // 注意: 需要 UserService 提供保存方法来持久化 lastLoginAt
-            // userService.updateLastLogin(user.getUsername());
+            userService.updateLastLogin(user.getUsername());
 
             // 生成 Token
             String accessToken = jwtService.generateAccessToken(user.getUsername(), user.getRole());
@@ -154,7 +152,12 @@ public class AuthController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> createUser(@RequestBody CreateUserRequest request) {
         try {
-            Role role = Role.valueOf(request.role());
+            Role role = Role.parse(request.role());
+            if (role == null) {
+                return ResponseEntity.badRequest().body(
+                    ApiResponse.badRequest("Invalid role: " + request.role()
+                        + ". Valid roles: VIEWER, EDITOR, APPROVER, ADMIN"));
+            }
             User user = userService.createUser(
                 request.username(), request.password(),
                 request.displayName(), request.email(),

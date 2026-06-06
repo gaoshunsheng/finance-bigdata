@@ -10,6 +10,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import com.credit.platform.engine.common.masking.SensitiveDataMasker;
+import com.credit.platform.engine.common.masking.SensitiveType;
 import com.credit.platform.engine.common.model.ActionType;
 import com.credit.platform.engine.common.model.DecisionResponse;
 import com.credit.platform.engine.common.model.DecisionResult;
@@ -47,6 +49,20 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class DecisionService {
 
     private static final Logger log = LoggerFactory.getLogger(DecisionService.class);
+
+    /** PII 字段脱敏规则 — 写入 ES 前对敏感字段进行脱敏 */
+    private static final Map<String, SensitiveType> PII_FIELD_RULES = Map.ofEntries(
+        Map.entry("name", SensitiveType.NAME),
+        Map.entry("customerName", SensitiveType.NAME),
+        Map.entry("idNumber", SensitiveType.ID_CARD),
+        Map.entry("idCard", SensitiveType.ID_CARD),
+        Map.entry("phone", SensitiveType.MOBILE),
+        Map.entry("mobile", SensitiveType.MOBILE),
+        Map.entry("bankCard", SensitiveType.BANK_CARD),
+        Map.entry("bankCardNo", SensitiveType.BANK_CARD),
+        Map.entry("email", SensitiveType.EMAIL),
+        Map.entry("address", SensitiveType.ADDRESS)
+    );
 
     private final VersionedRuleCache ruleCache;
     private final ScorecardExecutor scorecardExecutor;
@@ -246,7 +262,9 @@ public class DecisionService {
                 doc.setRejectReason(reason);
             }
             try {
-                doc.setInputSnapshot(objectMapper.writeValueAsString(input));
+                // 脱敏 PII 字段后存入 ES (不修改原始 Map)
+                Map<String, Object> maskedInput = SensitiveDataMasker.maskMap(input, PII_FIELD_RULES);
+                doc.setInputSnapshot(objectMapper.writeValueAsString(maskedInput));
                 doc.setOutputSnapshot(objectMapper.writeValueAsString(metadata));
             } catch (Exception e) {
                 log.debug("Failed to serialize snapshots for {}: {}", decisionId, e.getMessage());

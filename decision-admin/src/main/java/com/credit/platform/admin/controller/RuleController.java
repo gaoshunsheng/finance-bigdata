@@ -18,6 +18,9 @@ import com.credit.platform.admin.model.ApiResponse;
 import com.credit.platform.admin.model.RuleEntity;
 import com.credit.platform.admin.service.RuleAdminService;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+
 
 
 /**
@@ -55,7 +58,7 @@ public class RuleController {
 
     @PostMapping
     public ResponseEntity<ApiResponse<Map<String, Object>>> create(
-            @RequestBody CreateRequest request) {
+            @Valid @RequestBody CreateRequest request) {
         RuleEntity entity = service.create(TYPE, request.name(), request.content(), request.description());
         return ResponseEntity.ok(ApiResponse.success(entity.toSummary()));
     }
@@ -97,8 +100,8 @@ public class RuleController {
     // ========== DTO ==========
 
     public record CreateRequest(
-        String name,
-        String content,
+        @NotBlank(message = "规则名称不能为空") String name,
+        @NotBlank(message = "规则内容不能为空") String content,
         String description
     ) {}
     public record UpdateRequest(String content) {}

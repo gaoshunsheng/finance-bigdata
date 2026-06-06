@@ -2,6 +2,7 @@ package com.credit.platform.engine.core.cache;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.RemovalCause;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
@@ -84,13 +85,19 @@ public class VersionedRuleCache {
      */
     public VersionedRuleCache(int maxSize, int maxVersions) {
         this.maxVersions = maxVersions;
+        this.versionHistory = new ConcurrentHashMap<>();
+        this.versionLocks = new ConcurrentHashMap<>();
         this.mainCache = Caffeine.newBuilder()
             .maximumSize(maxSize)
             .expireAfterWrite(24, TimeUnit.HOURS)
             .recordStats()
+            .removalListener((String key, AtomicReference<VersionedArtifact<?>> value, RemovalCause cause) -> {
+                if (key != null) {
+                    versionLocks.remove(key);
+                    versionHistory.remove(key);
+                }
+            })
             .build();
-        this.versionHistory = new ConcurrentHashMap<>();
-        this.versionLocks = new ConcurrentHashMap<>();
     }
 
     // ==================== 存取操作 (CopyOnWrite) ====================
