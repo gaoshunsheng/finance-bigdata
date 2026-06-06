@@ -1,0 +1,105 @@
+# ============================================================================
+# PersistentVolumeClaims — Storage for stateful services
+# ============================================================================
+# Deploy BEFORE application deployments:
+#   kubectl apply -f pvc.yaml -n finance-platform
+# ============================================================================
+# Note: Adjust storageClassName to match your cluster's provisioner.
+#   Common options: standard (GKE), gp2/gp3 (AWS EBS), default (local),
+#   local-path (k3s), nfs (shared storage).
+# ============================================================================
+
+---
+# Model Platform: ML model artifacts
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: model-storage-pvc
+  namespace: finance-platform
+  labels:
+    app: model-platform
+    app.kubernetes.io/part-of: finance-bigdata-platform
+    data-type: models
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+  # storageClassName: standard
+
+---
+# Model Platform: Training/inference data
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: model-data-pvc
+  namespace: finance-platform
+  labels:
+    app: model-platform
+    app.kubernetes.io/part-of: finance-bigdata-platform
+    data-type: data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+  # storageClassName: standard
+
+---
+# Model Platform: Generated reports
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: model-reports-pvc
+  namespace: finance-platform
+  labels:
+    app: model-platform
+    app.kubernetes.io/part-of: finance-bigdata-platform
+    data-type: reports
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  # storageClassName: standard
+
+---
+# HDFS NameNode: Filesystem metadata
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: hadoop-nn-pvc
+  namespace: finance-platform
+  labels:
+    app: hadoop-namenode
+    app.kubernetes.io/part-of: finance-bigdata
+    data-type: namenode
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 30Gi
+  # storageClassName: standard
+
+---
+# HDFS DataNode: Block storage
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: hadoop-dn-pvc
+  namespace: finance-platform
+  labels:
+    app: hadoop-datanode
+    app.kubernetes.io/part-of: finance-bigdata
+    data-type: datanode
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Gi
+  # storageClassName: standard

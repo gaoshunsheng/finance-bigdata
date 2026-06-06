@@ -1,0 +1,55 @@
+# ============================================================================
+# Kustomization — Finance Bigdata Platform
+# ============================================================================
+# Usage:
+#   # Deploy with default registry (no prefix):
+#   kubectl apply -k docs/deployment/k8s/
+#
+#   # Override registry for private registry:
+#   kustomize edit set image \
+#     finance-bigdata/decision-server=harbor.example.com/finance/decision-server:v1.0.0 \
+#     finance-bigdata/decision-admin=harbor.example.com/finance/decision-admin:v1.0.0 \
+#     finance-bigdata/model-platform=harbor.example.com/finance/model-platform:v1.0.0 \
+#     finance-bigdata/data-service=harbor.example.com/finance/data-service:v1.0.0
+#
+#   # Or use the deploy helper script:
+#   REGISTRY=harbor.example.com/finance TAG=v1.0.0 ./deploy.sh
+# ============================================================================
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: finance-platform
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - pvc.yaml
+  - decision-server-deployment.yaml
+  - decision-admin-deployment.yaml
+  - model-platform-deployment.yaml
+  - data-service-deployment.yaml
+  - hadoop-deployment.yaml
+  - kafka-deployment.yaml
+  - hive-deployment.yaml
+  - hbase-deployment.yaml
+  - flink-deployment.yaml
+  - trino-deployment.yaml
+  - dolphinscheduler-deployment.yaml
+  - ingress.yaml
+
+# Image overrides — change registry/tag here or via `kustomize edit set image`
+images:
+  - name: finance-bigdata/decision-server
+    newTag: latest
+  - name: finance-bigdata/decision-admin
+    newTag: latest
+  - name: finance-bigdata/model-platform
+    newTag: latest
+  - name: finance-bigdata/data-service
+    newTag: latest
+
+# Common labels applied to all resources
+commonLabels:
+  app.kubernetes.io/part-of: finance-bigdata-platform
+  app.kubernetes.io/managed-by: kustomize

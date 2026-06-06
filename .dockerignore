@@ -1,0 +1,83 @@
+# ============================================================================
+# .dockerignore — Exclude unnecessary files from Docker build context
+# ============================================================================
+
+# Version control
+.git
+.gitignore
+
+# IDE and editor
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Claude / AI tooling
+.claude/
+
+# Build output (rebuilt inside container)
+**/target/
+**/*.jar
+**/*.class
+**/*.war
+
+# Node.js (rebuilt inside container)
+**/node_modules/
+**/dist/
+**/.nuxt/
+**/.output/
+**/.cache/
+
+# Python cache
+**/__pycache__/
+**/*.py[cod]
+**/*.egg-info/
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/*.onnx
+**/*.pkl
+**/*.pickle
+
+# Test and benchmark artifacts
+**/test-results/
+**/coverage/
+**/.nyc_output/
+
+# Docker files (avoid recursive builds)
+docker-compose*.yml
+Dockerfile*
+.dockerignore
+
+# Documentation (not needed in runtime image)
+docs/
+*.md
+LICENSE
+CONTRIBUTING.md
+
+# Deployment configs (not needed in runtime image)
+docs/deployment/k8s/
+docs/deployment/trino/
+docs/deployment/filebeat/
+docs/deployment/init-sql/
+docs/deployment/.env.example
+
+# Data pipeline scripts (not needed in app containers)
+data-pipeline/
+data-warehouse/
+
+# Engine test benchmarks
+engine-test/src/test/resources/jmeter/
+
+# Worktrees
+.claude/worktrees/
+
+# Environment files
+.env
+.env.*
