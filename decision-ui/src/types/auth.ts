@@ -21,7 +21,11 @@ export interface LoginRequest {
 export interface LoginResponse {
   accessToken: string
   refreshToken: string
-  user: User
+  tokenType: string
+  expiresIn: number
+  username: string
+  displayName: string
+  role: 'VIEWER' | 'EDITOR' | 'APPROVER' | 'ADMIN'
 }
 
 export interface TokenPair {

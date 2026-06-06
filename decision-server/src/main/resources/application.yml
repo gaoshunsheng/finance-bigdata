@@ -54,6 +54,16 @@ elasticsearch:
   port: ${ES_PORT:9200}
   scheme: ${ES_SCHEME:http}
 
+# Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
+
 logging:
   level:
     com.credit.platform: INFO

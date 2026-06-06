@@ -18,6 +18,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 /**
  * Spring Security 配置 -JWT 无状态认证 + RBAC 端点权限。
  * <p>
+ * 角色层级 (在 JwtAuthenticationFilter 中展开): ADMIN > APPROVER > EDITOR > VIEWER
+ * <p>
  * 端点权限规则:
  * <ul>
  *   <li>POST /api/v1/auth/login, /api/v1/auth/refresh - 公开</li>
@@ -46,6 +48,8 @@ public class SecurityConfig {
             .sessionManagement(session ->
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
+                // Actuator 健康检查端点
+                .requestMatchers("/actuator/**").permitAll()
                 // 公开端点
                 .requestMatchers("/api/v1/auth/login").permitAll()
                 .requestMatchers("/api/v1/auth/refresh").permitAll()
@@ -54,10 +58,10 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/auth/users/**").hasRole("ADMIN")
                 .requestMatchers("/api/v1/auth/change-password").authenticated()
                 // 审批操作 -APPROVER 及以上
-                .requestMatchers("/api/v1/publish/**/approve").hasRole("APPROVER")
-                .requestMatchers("/api/v1/publish/**/reject").hasRole("APPROVER")
+                .requestMatchers("/api/v1/publish/*/approve").hasRole("APPROVER")
+                .requestMatchers("/api/v1/publish/*/reject").hasRole("APPROVER")
                 // 灰度管理 -APPROVER 及以上
-                .requestMatchers("/api/v1/publish/**/grayscale/**").hasRole("APPROVER")
+                .requestMatchers("/api/v1/publish/*/grayscale/**").hasRole("APPROVER")
                 // POST/PUT -EDITOR 及以上
                 .requestMatchers(HttpMethod.POST, "/api/v1/**").hasRole("EDITOR")
                 .requestMatchers(HttpMethod.PUT, "/api/v1/**").hasRole("EDITOR")

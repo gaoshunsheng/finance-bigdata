@@ -9,7 +9,6 @@ from app.api import router as api_router
 from app.config import DEBUG, CORS_ORIGINS
 
 from app.core.inference.inference_service import inference_service
-from app.core.monitoring.model_monitor import model_monitor
 
 
 @asynccontextmanager
@@ -17,11 +16,9 @@ async def lifespan(app: FastAPI):
     """应用生命周期管理 — 替代弃用的 on_event 装饰器"""
     logger.info("Model Platform starting up...")
     inference_service.clear_cache()
-    model_monitor.start()
     yield
     # 关闭时清理资源
     inference_service.clear_cache()
-    model_monitor.stop()
     logger.info("Model Platform shutting down...")
 
 

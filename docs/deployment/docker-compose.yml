@@ -155,7 +155,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8080/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/api/v1/decision/health || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -222,7 +222,7 @@ services:
       TZ: "Asia/Shanghai"
       APP_HOST: "0.0.0.0"
       APP_PORT: "8082"
-      APP_WORKERS: "4"
+      APP_WORKERS: "1"
       MODEL_PLATFORM_HOST: "0.0.0.0"
       MODEL_PLATFORM_PORT: "8082"
       MODEL_PLATFORM_DB_URL: mysql+pymysql://${MYSQL_USER:-credit_admin}:${MYSQL_PASSWORD:-credit_pass_2024}@mysql:3306/model_platform?charset=utf8mb4
@@ -247,7 +247,7 @@ services:
       elasticsearch:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8082/health || exit 1"]
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8082/health')\" || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -314,6 +314,8 @@ services:
       ENSURE_NAMENODE_DIR: "/opt/hadoop/dfs/name"
     volumes:
       - hadoop-nn-data:/opt/hadoop/dfs/name
+      - ./hadoop/core-site.xml:/opt/hadoop/etc/hadoop/core-site.xml:ro
+      - ./hadoop/hdfs-site.xml:/opt/hadoop/etc/hadoop/hdfs-site.xml:ro
     networks:
       - finance-net
 
@@ -323,6 +325,7 @@ services:
   hadoop-datanode:
     image: apache/hadoop:3.3.6
     container_name: finance-datanode
+    hostname: datanode
     restart: unless-stopped
     command: ["hdfs", "datanode"]
     environment:
@@ -331,6 +334,8 @@ services:
       - hadoop-namenode
     volumes:
       - hadoop-dn-data:/opt/hadoop/dfs/data
+      - ./hadoop/core-site.xml:/opt/hadoop/etc/hadoop/core-site.xml:ro
+      - ./hadoop/hdfs-site.xml:/opt/hadoop/etc/hadoop/hdfs-site.xml:ro
     networks:
       - finance-net
 
@@ -347,9 +352,10 @@ services:
     environment:
       SERVICE_NAME: "metastore"
       DB_DRIVER: "mysql"
-      METASTORE_DB_URL: "jdbc:mysql://mysql:3306/hive_metastore?createDatabaseIfNotExist=true"
-      METASTORE_DB_USER: "root"
-      METASTORE_DB_PASSWORD: "root123"
+      IS_RESUME: "true"
+    volumes:
+      - ./hive/hive-site.xml:/opt/hive/conf/hive-site.xml:ro
+      - ./hive/lib/mysql-connector-j.jar:/opt/hive/lib/mysql-connector-j.jar:ro
     depends_on:
       - mysql
     networks:
@@ -369,6 +375,9 @@ services:
     environment:
       SERVICE_NAME: "hiveserver2"
       IS_RESUME: "true"
+    volumes:
+      - ./hive/hive-site.xml:/opt/hive/conf/hive-site.xml:ro
+      - ./hive/lib/mysql-connector-j.jar:/opt/hive/lib/mysql-connector-j.jar:ro
     depends_on:
       - hive-metastore
     networks:
@@ -378,7 +387,7 @@ services:
   # Big Data: HBase Master
   # ---------------------------------------------------------------------------
   hbase-master:
-    image: harisekhon/hbase:2.5
+    image: harisekhon/hbase:latest
     container_name: finance-hbase-master
     hostname: hbase-master
     restart: unless-stopped
@@ -448,6 +457,12 @@ services:
       HBASE_ZK_QUORUM: "zookeeper"
       ES_HOST: "elasticsearch"
       KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/8083' || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
     depends_on:
       - redis
       - kafka
@@ -509,6 +524,12 @@ services:
     restart: unless-stopped
     ports:
       - "3000:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO /dev/null http://127.0.0.1:3000/ || exit 1"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 30s
     networks:
       - finance-net
 
@@ -532,6 +553,95 @@ services:
       elasticsearch:
         condition: service_healthy
       kafka:
+        condition: service_started
+    networks:
+      - finance-net
+
+  # ---------------------------------------------------------------------------
+  # Data Pipeline: Canal — MySQL CDC → Kafka
+  # ---------------------------------------------------------------------------
+  canal:
+    image: canal/canal-server:v1.1.7
+    container_name: finance-canal
+    restart: unless-stopped
+    ports:
+      - "11111:11111"
+    environment:
+      canal.auto.scan: "false"
+      canal.destinations: "credit_platform"
+      canal.instance.master.address: "mysql:3306"
+      canal.instance.dbUsername: "credit_admin"
+      canal.instance.dbPassword: "credit_pass_2024"
+      canal.instance.filter.regex: "credit_platform\\..*"
+      canal.mq.servers: "kafka:9092"
+      canal.mq.topic: "cdc_all_events"
+      canal.mq.partition: "0"
+      TZ: "Asia/Shanghai"
+    depends_on:
+      - mysql
+      - kafka
+    networks:
+      - finance-net
+
+  # ---------------------------------------------------------------------------
+  # Data Pipeline: DataX — Batch data sync (MySQL → HDFS)
+  # ---------------------------------------------------------------------------
+  datax:
+    image: python:3.11-slim
+    container_name: finance-datax
+    restart: unless-stopped
+    environment:
+      TZ: "Asia/Shanghai"
+    volumes:
+      - ../data-pipeline/datax/jobs:/datax/job:ro
+      - ../data-pipeline/datax/run_daily_sync.sh:/datax/run_daily_sync.sh:ro
+    depends_on:
+      - mysql
+      - hadoop-namenode
+    entrypoint: ["tail", "-f", "/dev/null"]
+    networks:
+      - finance-net
+
+  # ---------------------------------------------------------------------------
+  # Data Pipeline: Spark — Offline ETL engine
+  # ---------------------------------------------------------------------------
+  spark-master:
+    image: apache/spark:3.5.0
+    container_name: finance-spark-master
+    hostname: spark-master
+    restart: unless-stopped
+    entrypoint: ["/usr/bin/tini", "-s", "--"]
+    command: ["/opt/spark/sbin/start-master.sh", "-p", "7077", "--webui-port", "8085"]
+    environment:
+      SPARK_NO_DAEMONIZE: "true"
+      SPARK_HOME: "/opt/spark"
+      TZ: "Asia/Shanghai"
+    ports:
+      - "18085:8085"
+      - "7077:7077"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8085/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - finance-net
+
+  spark-worker:
+    image: apache/spark:3.5.0
+    container_name: finance-spark-worker
+    restart: unless-stopped
+    entrypoint: ["/usr/bin/tini", "-s", "--"]
+    command: ["/opt/spark/sbin/start-worker.sh", "spark://spark-master:7077"]
+    environment:
+      SPARK_NO_DAEMONIZE: "true"
+      SPARK_HOME: "/opt/spark"
+      SPARK_WORKER_MEMORY: "1g"
+      SPARK_WORKER_CORES: "1"
+      TZ: "Asia/Shanghai"
+    depends_on:
+      spark-master:
         condition: service_started
     networks:
       - finance-net

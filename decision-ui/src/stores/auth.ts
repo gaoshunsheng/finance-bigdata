@@ -35,9 +35,19 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const res = await apiLogin({ username, password })
       setTokens(res.accessToken, res.refreshToken)
-      user.value = res.user
+      // 后端登录响应扁平返回 username/displayName/role，构造 User 对象
+      user.value = {
+        id: 0,
+        username: res.username,
+        displayName: res.displayName,
+        email: '',
+        role: res.role,
+        enabled: true,
+        createdAt: '',
+        updatedAt: '',
+      }
       // 从角色推导权限列表 (与后端 Role.java 保持一致)
-      permissions.value = derivePermissions(res.user.role)
+      permissions.value = derivePermissions(res.role)
     } finally {
       loading.value = false
     }

@@ -46,9 +46,9 @@ RUN --mount=type=cache,target=/root/.m2/repository \
     && cp ${SERVICE_NAME}/target/*.jar /app.jar
 
 # ---------------------------------------------------------------------------
-# Stage 2: Runtime with JRE 17 (minimal image)
+# Stage 2: Runtime — reuse maven base image (already cached locally)
 # ---------------------------------------------------------------------------
-FROM eclipse-temurin:17-jre-alpine
+FROM maven:3.9-eclipse-temurin-17
 
 ARG SERVICE_NAME
 ARG SERVICE_PORT=8080
@@ -57,11 +57,10 @@ LABEL maintainer="finance-bigdata-team"
 LABEL service=${SERVICE_NAME}
 LABEL description="Finance Bigdata Platform - ${SERVICE_NAME}"
 
-# Install curl for health check (must be before USER switch)
-RUN apk add --no-cache curl
+# curl already available in maven image
 
 # Add a non-root user for security
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+RUN groupadd -r appgroup && useradd -r -g appgroup appuser
 
 WORKDIR /app
 

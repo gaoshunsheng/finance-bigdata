@@ -13,3 +13,4 @@ model-platform/app/storage/
 *.pkl
 *.pickle
 .worktrees/
+worktrees/

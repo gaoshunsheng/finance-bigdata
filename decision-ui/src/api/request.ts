@@ -45,7 +45,8 @@ request.interceptors.response.use(
       message.error(data.message || '请求失败')
       return Promise.reject(new Error(data.message))
     }
-    return data
+    // 解包统一响应体 { code, message, data } → 直接返回 data 字段
+    return data.data !== undefined ? data.data : data
   },
   async (error) => {
     const { response, config } = error

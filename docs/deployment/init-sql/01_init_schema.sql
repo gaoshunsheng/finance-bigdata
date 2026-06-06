@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS `sys_user` (
 
 -- Insert default admin user (password: admin123 — BCrypt encoded)
 INSERT IGNORE INTO `sys_user` (`username`, `password`, `display_name`, `role`, `enabled`)
-VALUES ('admin', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', '系统管理员', 'ADMIN', 1);
+VALUES ('admin', '$2a$10$RaNX6HVmaoMQ4Ej6/XUA.eTDDAg/LY4z2uWBGeXSaOzr8kAmmmpDS', '系统管理员', 'ADMIN', 1);
 
 -- ---------------------------------------------------------------------------
 -- 3. audit_log — 审计日志表

@@ -32,10 +32,10 @@ pymysql==1.1.1
 # Redis
 redis==5.0.7
 
-# gRPC
+# gRPC — loosen protobuf constraint to resolve conflict
 grpcio==1.64.1
 grpcio-tools==1.64.1
-protobuf==4.25.3
+protobuf>=4.25.0,<6.0.0
 
 # Utilities
 pyyaml==6.0.1

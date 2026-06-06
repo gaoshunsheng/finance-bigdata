@@ -1,6 +1,8 @@
 package com.credit.platform.admin.security;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 import jakarta.servlet.FilterChain;
@@ -19,6 +21,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * JWT 认证过滤器 — 从 Authorization header 提取并验证 JWT Token。
  * <p>
  * 验证成功后设置 Spring Security Context。
+ * 角色层级在认证时展开: ADMIN → APPROVER → EDITOR → VIEWER。
  * </p>
  */
 @Component
@@ -51,7 +54,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     new UsernamePasswordAuthenticationToken(
                         username,
                         null,
-                        java.util.List.of(new SimpleGrantedAuthority("ROLE_" + role))
+                        expandRoleHierarchy(role)
                     );
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
@@ -59,5 +62,31 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    /**
+     * 展开角色层级: ADMIN > APPROVER > EDITOR > VIEWER
+     * <p>
+     * 高级角色自动继承低级角色的所有权限。
+     */
+    private static List<SimpleGrantedAuthority> expandRoleHierarchy(String role) {
+        List<SimpleGrantedAuthority> authorities = new ArrayList<>();
+        authorities.add(new SimpleGrantedAuthority("ROLE_" + role));
+
+        switch (role) {
+            case "ADMIN":
+                authorities.add(new SimpleGrantedAuthority("ROLE_APPROVER"));
+                // fall through
+            case "APPROVER":
+                authorities.add(new SimpleGrantedAuthority("ROLE_EDITOR"));
+                // fall through
+            case "EDITOR":
+                authorities.add(new SimpleGrantedAuthority("ROLE_VIEWER"));
+                break;
+            default:
+                break;
+        }
+
+        return authorities;
     }
 }

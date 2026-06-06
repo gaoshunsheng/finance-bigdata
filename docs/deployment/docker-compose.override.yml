@@ -1,0 +1,17 @@
+# Local port overrides — avoid conflicts with existing services
+services:
+  decision-server:
+    ports:
+      - "18080:8080"
+
+  decision-admin:
+    ports:
+      - "18081:8081"
+
+  model-platform:
+    ports:
+      - "18082:8082"
+
+  data-service:
+    ports:
+      - "18083:8083"

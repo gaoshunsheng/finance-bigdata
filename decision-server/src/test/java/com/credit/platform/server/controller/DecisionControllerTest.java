@@ -31,7 +31,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
             "org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration," +
             "org.springframework.boot.autoconfigure.sql.init.SqlInitializationAutoConfiguration," +
             "org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration," +
-            "org.springframework.boot.autoconfigure.security.servlet.SecurityFilterAutoConfiguration"
+            "org.springframework.boot.autoconfigure.security.servlet.SecurityFilterAutoConfiguration," +
+            "org.springframework.boot.actuate.autoconfigure.security.servlet.ManagementWebSecurityAutoConfiguration"
     }
 )
 @AutoConfigureMockMvc
