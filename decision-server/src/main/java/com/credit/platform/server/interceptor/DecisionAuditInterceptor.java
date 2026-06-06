@@ -1,10 +1,12 @@
 package com.credit.platform.server.interceptor;
 
+import com.credit.platform.server.model.DecisionLogDocument;
+import com.credit.platform.server.repository.DecisionLogRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.loguru.Logger;
-import org.loguru.LoggerFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.ModelAndView;
@@ -32,6 +34,12 @@ public class DecisionAuditInterceptor implements HandlerInterceptor {
     private static final ObjectMapper objectMapper = new ObjectMapper();
     private static final String START_TIME_ATTR = "auditStartTime";
     private static final ZoneId BEIJING = ZoneId.of("Asia/Shanghai");
+
+    private final DecisionLogRepository decisionLogRepository;
+
+    public DecisionAuditInterceptor(DecisionLogRepository decisionLogRepository) {
+        this.decisionLogRepository = decisionLogRepository;
+    }
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
@@ -65,6 +73,17 @@ public class DecisionAuditInterceptor implements HandlerInterceptor {
             auditEntry.put("retention", "5Y");
 
             logger.info("AUDIT: {}", objectMapper.writeValueAsString(auditEntry));
+
+            // 持久化审计日志到 ES
+            DecisionLogDocument auditDoc = new DecisionLogDocument();
+            auditDoc.setId(UUID.randomUUID().toString().replace("-", ""));
+            auditDoc.setTraceId(request.getRequestId());
+            auditDoc.setDecisionResult("AUDIT");
+            auditDoc.setExecutionTimeMs(durationMs);
+            try {
+                auditDoc.setInputSnapshot(objectMapper.writeValueAsString(auditEntry));
+            } catch (Exception ignored) {}
+            decisionLogRepository.save(auditDoc);
         } catch (Exception e) {
             // 审计日志写入失败不应影响主流程
             logger.error("Failed to write audit log: {}", e.getMessage());

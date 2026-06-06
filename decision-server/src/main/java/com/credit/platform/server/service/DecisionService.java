@@ -3,6 +3,7 @@ package com.credit.platform.server.service;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -28,6 +29,9 @@ import com.credit.platform.engine.core.trace.DecisionTrace;
 import com.credit.platform.engine.core.trace.DecisionTracer;
 import com.credit.platform.engine.core.trace.TracePublisher;
 import com.credit.platform.engine.core.trace.TraceReporter;
+import com.credit.platform.server.model.DecisionLogDocument;
+import com.credit.platform.server.repository.DecisionLogRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * 决策服务 — 编排引擎核心组件执行完整决策流程。
@@ -52,14 +56,20 @@ public class DecisionService {
     private final VersionedRuleCache ruleCache;
     private final ScorecardExecutor scorecardExecutor;
     private final TracePublisher tracePublisher;
+    private final DecisionLogRepository decisionLogRepository;
+    private final ObjectMapper objectMapper;
     private final AtomicLong requestCounter = new AtomicLong(0);
 
     public DecisionService(VersionedRuleCache ruleCache,
                            ScorecardExecutor scorecardExecutor,
-                           TracePublisher tracePublisher) {
+                           TracePublisher tracePublisher,
+                           DecisionLogRepository decisionLogRepository,
+                           ObjectMapper objectMapper) {
         this.ruleCache = Objects.requireNonNull(ruleCache);
         this.scorecardExecutor = Objects.requireNonNull(scorecardExecutor);
         this.tracePublisher = Objects.requireNonNull(tracePublisher);
+        this.decisionLogRepository = decisionLogRepository;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -99,13 +109,18 @@ public class DecisionService {
             log.warn("No strategy found for {}, routing to MANUAL review", strategyId);
             tracer.finish("MANUAL", null, "策略不存在", "STRATEGY_NOT_FOUND");
             publishTrace(tracer.getTrace());
-            return DecisionResponse.manual(decisionId, tracer.getTrace().getTraceId(),
+            DecisionResponse manualResp = DecisionResponse.manual(decisionId, tracer.getTrace().getTraceId(),
                 System.currentTimeMillis() - startMs);
+            saveDecisionLog(decisionId, strategyId, tracer.getTrace().getTraceId(), "MANUAL",
+                0, null, null, applicant, metadata, System.currentTimeMillis() - startMs);
+            return manualResp;
 
         } catch (Exception e) {
             log.error("Decision execution failed for {}", decisionId, e);
             tracer.finish("MANUAL", null, "系统异常: " + e.getMessage(), "SYSTEM_ERROR");
             publishTrace(tracer.getTrace());
+            saveDecisionLog(decisionId, strategyId, tracer.getTrace().getTraceId(), "MANUAL",
+                0, null, null, applicant, metadata, System.currentTimeMillis() - startMs);
             return DecisionResponse.manual(decisionId, tracer.getTrace().getTraceId(),
                 System.currentTimeMillis() - startMs);
         }
@@ -174,6 +189,11 @@ public class DecisionService {
         tracer.finish(finalResult.name(), score, rejectReason, rejectCode);
         publishTrace(tracer.getTrace());
 
+        // 持久化到 ES
+        saveDecisionLog(decisionId, dag.getRuleId(), traceId, finalResult.name(),
+            score != null ? score : 0, rejectReason, flowResult.getDecisionPath(),
+            ctx.getVariables(), Map.of(), durationMs);
+
         // 构建响应
         return switch (finalResult) {
             case PASS -> DecisionResponse.pass(decisionId, score,
@@ -192,12 +212,51 @@ public class DecisionService {
      * @return 决策报告 (JSON Map)，不存在时返回 null
      */
     public Map<String, Object> getReport(String decisionId) {
-        // TODO: 从 ES 查询 — 当前返回空
-        // 生产实现: ElasticsearchRepository.findById(decisionId)
-        return null;
+        List<DecisionLogDocument> logs = decisionLogRepository.findByTraceId(decisionId);
+        if (logs.isEmpty()) {
+            return null;
+        }
+        DecisionLogDocument doc = logs.get(0);
+        Map<String, Object> report = new LinkedHashMap<>();
+        report.put("decisionId", doc.getId());
+        report.put("traceId", doc.getTraceId());
+        report.put("result", doc.getDecisionResult());
+        report.put("score", doc.getScore());
+        report.put("riskLevel", doc.getRiskLevel());
+        report.put("rulesExecuted", doc.getRulesExecuted());
+        report.put("executionTimeMs", doc.getExecutionTimeMs());
+        report.put("timestamp", doc.getTimestamp());
+        return report;
     }
 
     // ========== 内部方法 ==========
+
+    private void saveDecisionLog(String decisionId, String strategyId, String traceId,
+                                  String result, double score, String reason,
+                                  List<String> rulesExecuted, Map<String, Object> input,
+                                  Map<String, Object> metadata, long durationMs) {
+        try {
+            DecisionLogDocument doc = new DecisionLogDocument();
+            doc.setId(decisionId);
+            doc.setTraceId(traceId);
+            doc.setDecisionResult(result);
+            doc.setScore(score);
+            doc.setRulesExecuted(rulesExecuted);
+            doc.setExecutionTimeMs(durationMs);
+            if (reason != null) {
+                doc.setRiskLevel(reason);
+            }
+            try {
+                doc.setInputSnapshot(objectMapper.writeValueAsString(input));
+                doc.setOutputSnapshot(objectMapper.writeValueAsString(metadata));
+            } catch (Exception e) {
+                log.debug("Failed to serialize snapshots for {}: {}", decisionId, e.getMessage());
+            }
+            decisionLogRepository.save(doc);
+        } catch (Exception e) {
+            log.warn("Failed to persist decision log to ES for {}: {}", decisionId, e.getMessage());
+        }
+    }
 
     private void publishTrace(DecisionTrace trace) {
         try {

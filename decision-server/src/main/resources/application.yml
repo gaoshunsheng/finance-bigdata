@@ -49,6 +49,11 @@ decision:
       secret-key: "change-me-in-production"
       token-expire-hours: 24
 
+elasticsearch:
+  host: ${ES_HOST:localhost}
+  port: ${ES_PORT:9200}
+  scheme: ${ES_SCHEME:http}
+
 logging:
   level:
     com.credit.platform: INFO

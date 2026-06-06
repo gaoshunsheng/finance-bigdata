@@ -22,6 +22,10 @@
         </dependency>
         <dependency>
             <groupId>com.credit.platform</groupId>
+            <artifactId>engine-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.credit.platform</groupId>
             <artifactId>decision-admin</artifactId>
         </dependency>
         <dependency>
@@ -33,6 +37,17 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- Elasticsearch -->
+        <dependency>
+            <groupId>co.elastic.clients</groupId>
+            <artifactId>elasticsearch-java</artifactId>
+            <version>8.13.4</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
         </dependency>
 
         <!-- Test -->

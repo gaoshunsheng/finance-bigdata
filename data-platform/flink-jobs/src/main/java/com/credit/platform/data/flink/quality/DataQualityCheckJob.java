@@ -1,5 +1,6 @@
 package com.credit.platform.data.flink.quality;
 
+import com.credit.platform.data.flink.common.ElasticsearchAlertSink;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -17,8 +18,10 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -88,8 +91,23 @@ public class DataQualityCheckJob {
                 .flatMap(DataQualityCheckJob::checkQuality)
                 .name("quality-check-rules");
 
-        // 5. 输出违规记录（print 为占位，后续对接 Elasticsearch）
-        violationStream.print("QualityViolation");
+        // 5. 转换为 Map 并写入 Elasticsearch + print 调试
+        DataStream<Map<String, Object>> alertStream = violationStream.map(v -> {
+            Map<String, Object> map = new HashMap<>();
+            map.put("ruleName", v.ruleName);
+            map.put("fieldName", v.fieldName);
+            map.put("violationDetail", v.violationDetail);
+            map.put("originalPayload", v.originalPayload != null && v.originalPayload.length() > 500
+                    ? v.originalPayload.substring(0, 500) : v.originalPayload);
+            map.put("eventTimestamp", v.timestamp);
+            map.put("severity", "HIGH");
+            return map;
+        });
+
+        String esHost = getEnv("ES_HOST", "localhost");
+        int esPort = Integer.parseInt(getEnv("ES_PORT", "9200"));
+        alertStream.addSink(new ElasticsearchAlertSink(esHost, esPort));
+        alertStream.print("QualityViolation");
 
         // 6. 执行作业
         env.execute("FLINK_005 - Data Quality Check Job");
