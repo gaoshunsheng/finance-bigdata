@@ -25,6 +25,10 @@ COPY engine-test/pom.xml engine-test/pom.xml
 COPY decision-admin/pom.xml decision-admin/pom.xml
 COPY decision-sdk/pom.xml decision-sdk/pom.xml
 COPY decision-server/pom.xml decision-server/pom.xml
+COPY data-platform/pom.xml data-platform/pom.xml
+COPY data-platform/flink-jobs/pom.xml data-platform/flink-jobs/pom.xml
+COPY data-platform/data-service/pom.xml data-platform/data-service/pom.xml
+COPY data-platform/data-governance/pom.xml data-platform/data-governance/pom.xml
 
 RUN --mount=type=cache,target=/root/.m2/repository \
     mvn dependency:go-offline -B --fail-never

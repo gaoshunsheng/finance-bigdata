@@ -40,3 +40,10 @@ spec:
                 name: model-platform-svc
                 port:
                   number: 8082
+          - path: /data(/|$)(.*)
+            pathType: Prefix
+            backend:
+              service:
+                name: data-service-svc
+                port:
+                  number: 8083
