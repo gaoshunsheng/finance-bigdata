@@ -10,7 +10,6 @@
                         "connection": [
                             {
                                 "jdbcUrl": ["jdbc:mysql://mysql:3306/credit_platform?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai"],
-                                "table": ["repayment_record"],
                                 "querySql": ["SELECT id, loan_id, customer_id, installment_no, due_date, repay_date, repay_amount, principal, interest, overdue_days, status, source_system, etl_time FROM repayment_record WHERE DATE(etl_time) = '${dt}'"]
                             }
                         ],
@@ -35,7 +34,7 @@
                 "writer": {
                     "name": "hdfswriter",
                     "parameter": {
-                        "defaultFS": "hdfs://namenode:8020",
+                        "defaultFS": "hdfs://namenode:9000",
                         "fileType": "orc",
                         "path": "/data/ods/ods_repayment_record/dt=${dt}",
                         "fileName": "ods_repayment_record",
@@ -46,15 +45,15 @@
                             {"name": "installment_no", "type": "INT"},
                             {"name": "due_date", "type": "DATE"},
                             {"name": "repay_date", "type": "DATE"},
-                            {"name": "repay_amount", "type": "DECIMAL"},
-                            {"name": "principal", "type": "DECIMAL"},
-                            {"name": "interest", "type": "DECIMAL"},
+                            {"name": "repay_amount", "type": "DOUBLE"},
+                            {"name": "principal", "type": "DOUBLE"},
+                            {"name": "interest", "type": "DOUBLE"},
                             {"name": "overdue_days", "type": "INT"},
                             {"name": "status", "type": "STRING"},
                             {"name": "source_system", "type": "STRING"},
                             {"name": "etl_time", "type": "TIMESTAMP"}
                         ],
-                        "writeMode": "overwrite",
+                        "writeMode": "truncate",
                         "fieldDelimiter": "",
                         "compress": "SNAPPY",
                         "encoding": "UTF-8"
@@ -64,9 +63,7 @@
         ],
         "setting": {
             "speed": {
-                "channel": 3,
-                "record": 10000,
-                "byte": 1048576
+                "channel": 3
             },
             "errorLimit": {
                 "record": 0,

@@ -10,7 +10,6 @@
                         "connection": [
                             {
                                 "jdbcUrl": ["jdbc:mysql://mysql:3306/credit_platform?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai"],
-                                "table": ["customer_info"],
                                 "querySql": ["SELECT id, customer_id, customer_name, id_card, phone, gender, birth_date, education, marital_status, address, employer, industry, annual_income, source_system, etl_time FROM customer_info WHERE DATE(etl_time) = '${dt}'"]
                             }
                         ],
@@ -37,7 +36,7 @@
                 "writer": {
                     "name": "hdfswriter",
                     "parameter": {
-                        "defaultFS": "hdfs://namenode:8020",
+                        "defaultFS": "hdfs://namenode:9000",
                         "fileType": "orc",
                         "path": "/data/ods/ods_customer_info/dt=${dt}",
                         "fileName": "ods_customer_info",
@@ -54,11 +53,11 @@
                             {"name": "address", "type": "STRING"},
                             {"name": "employer", "type": "STRING"},
                             {"name": "industry", "type": "STRING"},
-                            {"name": "annual_income", "type": "DECIMAL"},
+                            {"name": "annual_income", "type": "DOUBLE"},
                             {"name": "source_system", "type": "STRING"},
                             {"name": "etl_time", "type": "TIMESTAMP"}
                         ],
-                        "writeMode": "overwrite",
+                        "writeMode": "truncate",
                         "fieldDelimiter": "",
                         "compress": "SNAPPY",
                         "encoding": "UTF-8"
@@ -68,9 +67,7 @@
         ],
         "setting": {
             "speed": {
-                "channel": 3,
-                "record": 10000,
-                "byte": 1048576
+                "channel": 3
             },
             "errorLimit": {
                 "record": 0,

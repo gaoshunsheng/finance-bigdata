@@ -596,8 +596,9 @@ services:
       TZ: "Asia/Shanghai"
       DATAX_HOME: "/opt/datax"
     volumes:
-      - ../data-pipeline/datax/jobs:/datax/job:ro
-      - ../data-pipeline/datax/run_daily_sync.sh:/datax/run_daily_sync.sh:ro
+      - ../../data-pipeline/datax/jobs:/datax/job:ro
+      - ../../data-pipeline/datax/run_daily_sync.sh:/datax/run_daily_sync.sh:ro
+      - ./hadoop-conf:/etc/hadoop:ro
     depends_on:
       - mysql
       - hadoop-namenode
