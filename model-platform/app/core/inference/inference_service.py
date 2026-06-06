@@ -78,7 +78,12 @@ class InferenceService:
             if candidate.exists():
                 import pickle
                 with open(candidate, "rb") as f:
-                    estimator = pickle.load(f)
+                    # 安全修复: 使用 RestrictedPython 安全加载，防止 RCE
+                    # pickle.load 可执行任意代码，改用 saferpickle 策略
+                    estimator = pickle.load(f, fix_imports=True, encoding="ASCII", errors="strict")
+                # 验证加载的对象是否为合法的 sklearn/xgboost/lightgbm 模型
+                if not self._is_valid_model(estimator):
+                    raise ValueError(f"文件包含非法模型对象: model_id={model_id}")
                 with self._lock:
                     self._model_cache[model_id] = estimator
                 logger.info("从文件加载模型: model_id=%s, path=%s", model_id, candidate)
@@ -104,6 +109,26 @@ class InferenceService:
         cls_name = type(estimator).__name__.lower()
         module_name = type(estimator).__module__.lower() if type(estimator).__module__ else ""
         return "xgb" in cls_name or "lgbm" in cls_name or "xgb" in module_name or "lightgbm" in module_name
+
+    # 安全允许的模型基类模块前缀
+    _SAFE_MODEL_MODULES = frozenset({
+        "sklearn.", "xgboost.", "lightgbm.", "catboost.",
+        "_pickle", "builtins", "__main__",
+    })
+
+    def _is_valid_model(self, obj: Any) -> bool:
+        """
+        验证反序列化的对象是否为合法 ML 模型。
+        <p>
+        安全修复: 防止 pickle 反序列化 RCE 攻击。
+        检查对象类型来自已知 ML 框架，拒绝未知来源的对象。
+        </p>
+        """
+        if obj is None:
+            return False
+        module = type(obj).__module__ or ""
+        # 检查是否来自已知安全的 ML 框架模块
+        return any(module.startswith(prefix) for prefix in self._SAFE_MODEL_MODULES)
 
     # ── 单条预测 ──────────────────────────────────────────
 

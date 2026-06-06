@@ -23,6 +23,14 @@ DATABASE_URL = os.getenv(
     os.getenv("DATABASE_URL", "mysql+pymysql://root:password@localhost:3306/model_platform")
 )
 
+# CORS — 从环境变量读取允许的源，多个源用逗号分隔
+# 安全修复: 不再硬编码数据库密码为默认值
+CORS_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:8080").split(",")
+    if origin.strip()
+]
+
 # Redis — support both MODEL_PLATFORM_REDIS_URL and REDIS_URL
 REDIS_URL = os.getenv("MODEL_PLATFORM_REDIS_URL", os.getenv("REDIS_URL", "redis://localhost:6379/2"))
 

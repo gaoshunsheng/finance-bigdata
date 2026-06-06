@@ -30,7 +30,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
  */
 @Configuration
 @EnableWebSecurity
-@ConditionalOnProperty(name = "decision.security.enabled", havingValue = "true", matchIfMissing = false)
+@ConditionalOnProperty(name = "decision.security.enabled", havingValue = "true", matchIfMissing = true)
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;

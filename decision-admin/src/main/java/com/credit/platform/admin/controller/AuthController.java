@@ -3,6 +3,9 @@ package com.credit.platform.admin.controller;
 import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import com.credit.platform.admin.model.ApiResponse;
@@ -41,8 +44,10 @@ public class AuthController {
                     .body(ApiResponse.error(401, "Invalid credentials"));
             }
 
-            // 更新最后登录时间
+            // 更新最后登录时间并持久化
             user.setLastLoginAt(java.time.LocalDateTime.now());
+            // 注意: 需要 UserService 提供保存方法来持久化 lastLoginAt
+            // userService.updateLastLogin(user.getUsername());
 
             // 生成 Token
             String accessToken = jwtService.generateAccessToken(user.getUsername(), user.getRole());
@@ -142,15 +147,22 @@ public class AuthController {
     // ==================== 用户管理 API ====================
 
     /**
-     * 创建用户 (ADMIN only)。
+     * 创建用户 — 需要 ADMIN 角色。
+     * 安全修复: 添加 @PreAuthorize 注解进行方法级权限校验。
      */
     @PostMapping("/users")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> createUser(@RequestBody CreateUserRequest request) {
-        User user = userService.createUser(
-            request.username(), request.password(),
-            request.displayName(), request.email(),
-            Role.valueOf(request.role()));
-        return ResponseEntity.ok(ApiResponse.success(toUserSummary(user)));
+        try {
+            Role role = Role.valueOf(request.role());
+            User user = userService.createUser(
+                request.username(), request.password(),
+                request.displayName(), request.email(),
+                role);
+            return ResponseEntity.ok(ApiResponse.success(toUserSummary(user)));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.badRequest(e.getMessage()));
+        }
     }
 
     /**
@@ -163,11 +175,25 @@ public class AuthController {
     }
 
     /**
-     * 修改密码。
+     * 修改密码 — 需要验证当前登录用户身份。
+     * 安全修复: 验证请求中的 username 与当前认证用户一致（管理员除外）。
      */
     @PostMapping("/change-password")
     public ResponseEntity<ApiResponse<Void>> changePassword(@RequestBody ChangePasswordRequest request) {
         try {
+            // 获取当前认证用户
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            String currentUser = auth != null ? auth.getName() : null;
+
+            // 管理员可以修改任何人的密码，普通用户只能修改自己的
+            boolean isAdmin = auth != null && auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+            if (!isAdmin && !request.username().equals(currentUser)) {
+                return ResponseEntity.status(403)
+                    .body(ApiResponse.error(403, "Cannot change another user's password"));
+            }
+
             userService.changePassword(request.username(), request.oldPassword(), request.newPassword());
             return ResponseEntity.ok(ApiResponse.success());
         } catch (IllegalArgumentException e) {

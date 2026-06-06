@@ -11,7 +11,7 @@ import org.springframework.web.servlet.HandlerInterceptor;
  * JWT 鉴权拦截器。
  * <p>
  * 验证请求头中的 Authorization Bearer Token。
- * 开发阶段支持通过配置关闭鉴权。
+ * 仅在 dev/test profile 下允许关闭鉴权，生产环境强制开启。
  * </p>
  */
 @Component
@@ -57,25 +57,18 @@ public class AuthInterceptor implements HandlerInterceptor {
     }
 
     /**
-     * 验证 Token。
+     * 验证 Token — 仅使用共享密钥匹配。
      * <p>
-     * 当前实现为简单密钥匹配，生产环境应替换为 JWT 解析验证。
+     * dev-token 绕过已移除。生产环境应替换为 JWT 库解析验证签名和过期时间。
+     * 密钥应从配置中心 / Vault 加载，而非硬编码。
      * </p>
      *
      * @param token Bearer Token
      * @return 是否有效
      */
     private boolean validateToken(String token) {
-        // 开发阶段: 简单密钥匹配
+        // 安全修复: 移除 dev-token 绕过，仅允许配置的共享密钥
         // 生产环境: 使用 JWT 库解析验证签名和过期时间
-        return secretKey.equals(token) || isValidDevToken(token);
-    }
-
-    /**
-     * 开发令牌格式: dev-{任意字符串}
-     * 生产环境应移除此方法。
-     */
-    private boolean isValidDevToken(String token) {
-        return token != null && token.startsWith("dev-");
+        return secretKey.equals(token);
     }
 }

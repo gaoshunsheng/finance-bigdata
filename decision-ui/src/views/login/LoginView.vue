@@ -49,7 +49,7 @@
       </a-form>
 
       <div class="login-footer">
-        <span>默认管理员: admin / admin123</span>
+        <span>如有疑问请联系系统管理员</span>
       </div>
     </div>
   </div>
@@ -81,12 +81,28 @@ const rules = {
   password: [{ required: true, message: '请输入密码' }],
 }
 
+/**
+ * 安全重定向: 仅允许本站相对路径，拒绝 // 开头、http(s):// 等外部跳转
+ */
+function safeRedirect(redirect: string | undefined): string {
+  if (!redirect) return '/dashboard'
+  // 拒绝绝对 URL 和协议相对 URL
+  if (redirect.startsWith('//') || redirect.startsWith('http://') || redirect.startsWith('https://')) {
+    return '/dashboard'
+  }
+  // 拒绝 javascript: 和 data: 等协议
+  if (redirect.includes(':') && !redirect.startsWith('/')) {
+    return '/dashboard'
+  }
+  return redirect
+}
+
 async function handleLogin() {
   loading.value = true
   try {
     await authStore.login(form.username, form.password)
     message.success('登录成功')
-    const redirect = (route.query.redirect as string) || '/dashboard'
+    const redirect = safeRedirect(route.query.redirect as string)
     router.push(redirect)
   } catch (e: any) {
     message.error(e?.message || '登录失败，请检查用户名和密码')
