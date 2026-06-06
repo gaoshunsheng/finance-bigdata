@@ -43,20 +43,23 @@ async def batch_predict(request: BatchInferenceRequest):
         import time
         start = time.time()
 
-        predictions = inference_service.batch_predict(
+        batch_result = inference_service.batch_predict(
             model_id=request.model_id,
             records=request.records,
         )
 
+        predictions = batch_result["predictions"]
         latency_ms = (time.time() - start) * 1000
 
         results = predictions
         if request.return_explanation:
             results = []
-            for pred in predictions:
+            for idx, pred in enumerate(predictions):
+                # Use the original record features for explanation
+                record_features = request.records[idx] if idx < len(request.records) else {}
                 explanation = inference_service.explain(
                     model_id=request.model_id,
-                    features_dict=pred.get("_features", {}),
+                    features_dict=record_features,
                 )
                 pred_copy = {k: v for k, v in pred.items() if k != "_features"}
                 pred_copy["explanation"] = explanation
