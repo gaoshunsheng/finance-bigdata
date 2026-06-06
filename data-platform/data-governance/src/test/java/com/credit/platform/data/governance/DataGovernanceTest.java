@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -290,6 +291,112 @@ class DataGovernanceTest {
 
             assertEquals(1, monitor.getViolationsByDimension(QualityRule.QualityDimension.COMPLETENESS).size());
             assertEquals(0, monitor.getViolationsByDimension(QualityRule.QualityDimension.ACCURACY).size());
+        }
+
+        @Test
+        @DisplayName("唯一性检测 — 重复值违规")
+        void testUniquenessViolation() {
+            monitor.addRule(new QualityRule("R010", "ID唯一", QualityRule.QualityDimension.UNIQUENESS,
+                    "ods_loan_application", "id", "UNIQUE", 0, QualityRule.Severity.CRITICAL));
+
+            // 第一次出现 — 不违规
+            List<QualityViolation> first = monitor.check("ods_loan_application", "id", "C001");
+            assertEquals(0, first.size());
+
+            // 第二次出现相同值 — 违规
+            List<QualityViolation> second = monitor.check("ods_loan_application", "id", "C001");
+            assertEquals(1, second.size());
+            assertEquals(QualityRule.QualityDimension.UNIQUENESS, second.get(0).getDimension());
+
+            // 不同值 — 不违规
+            List<QualityViolation> third = monitor.check("ods_loan_application", "id", "C002");
+            assertEquals(0, third.size());
+
+            // 清理后相同值再次不违规
+            monitor.clearSeenValues();
+            List<QualityViolation> afterClear = monitor.check("ods_loan_application", "id", "C001");
+            assertEquals(0, afterClear.size());
+        }
+
+        @Test
+        @DisplayName("唯一性检测 — null 值不触发")
+        void testUniquenessNullSafe() {
+            monitor.addRule(new QualityRule("R011", "ID唯一", QualityRule.QualityDimension.UNIQUENESS,
+                    "t1", "id", "UNIQUE", 0, QualityRule.Severity.CRITICAL));
+
+            List<QualityViolation> violations = monitor.check("t1", "id", null);
+            assertEquals(0, violations.size());
+        }
+
+        @Test
+        @DisplayName("一致性检测 — 跨表引用校验")
+        void testConsistencyCheck() {
+            monitor.addRule(new QualityRule("R020", "产品ID一致性", QualityRule.QualityDimension.CONSISTENCY,
+                    "ods_loan_application", "product_id", "REF:dim_product.product_id",
+                    0, QualityRule.Severity.CRITICAL));
+
+            // 未注册校验器 — 默认不违规
+            List<QualityViolation> noChecker = monitor.check("ods_loan_application", "product_id", "P999");
+            assertEquals(0, noChecker.size());
+
+            // 注册校验器: 只有 P001, P002 存在于参考表
+            Set<String> validProducts = new HashSet<>(List.of("P001", "P002"));
+            monitor.registerConsistencyChecker("dim_product.product_id",
+                    (refTable, refColumn, value) -> validProducts.contains(value.toString()));
+
+            // 有效值 — 不违规
+            List<QualityViolation> valid = monitor.check("ods_loan_application", "product_id", "P001");
+            assertEquals(0, valid.size());
+
+            // 无效值 — 违规
+            List<QualityViolation> invalid = monitor.check("ods_loan_application", "product_id", "P999");
+            assertEquals(1, invalid.size());
+            assertEquals(QualityRule.QualityDimension.CONSISTENCY, invalid.get(0).getDimension());
+        }
+
+        @Test
+        @DisplayName("及时性检测 — SLA 时间点超时违规")
+        void testTimelinessCheck() {
+            monitor.addRule(new QualityRule("R030", "ODS产出SLA", QualityRule.QualityDimension.TIMELINESS,
+                    "ods_loan_application", "etl_time", "SLA:08:00",
+                    0, QualityRule.Severity.WARNING));
+
+            // 未注册到达时间 — 默认不违规
+            List<QualityViolation> noArrival = monitor.check("ods_loan_application", "etl_time", "2026-06-06");
+            assertEquals(0, noArrival.size());
+
+            // 注册到达时间: 09:30 超过了 08:00 SLA — 违规
+            monitor.registerArrival("ods_loan_application",
+                    LocalDateTime.of(2026, 6, 6, 9, 30));
+            List<QualityViolation> late = monitor.check("ods_loan_application", "etl_time", "2026-06-06");
+            assertEquals(1, late.size());
+            assertEquals(QualityRule.QualityDimension.TIMELINESS, late.get(0).getDimension());
+
+            // 更新到达时间: 07:00 在 SLA 内 — 不违规
+            monitor.registerArrival("ods_loan_application",
+                    LocalDateTime.of(2026, 6, 6, 7, 0));
+            List<QualityViolation> onTime = monitor.check("ods_loan_application", "etl_time", "2026-06-06");
+            assertEquals(0, onTime.size());
+        }
+
+        @Test
+        @DisplayName("及时性检测 — SLA 小时数违规")
+        void testTimelinessHoursCheck() {
+            monitor.addRule(new QualityRule("R031", "DWD产出SLA", QualityRule.QualityDimension.TIMELINESS,
+                    "dwd_loan_detail", "etl_time", "SLA:2h",
+                    0, QualityRule.Severity.WARNING));
+
+            // 到达时间在第 3 小时，超过 SLA 2 小时 — 违规
+            monitor.registerArrival("dwd_loan_detail",
+                    LocalDateTime.of(2026, 6, 6, 3, 0));
+            List<QualityViolation> late = monitor.check("dwd_loan_detail", "etl_time", "2026-06-06");
+            assertEquals(1, late.size());
+
+            // 到达时间在第 1 小时，未超过 SLA — 不违规
+            monitor.registerArrival("dwd_loan_detail",
+                    LocalDateTime.of(2026, 6, 6, 1, 30));
+            List<QualityViolation> onTime = monitor.check("dwd_loan_detail", "etl_time", "2026-06-06");
+            assertEquals(0, onTime.size());
         }
     }
 

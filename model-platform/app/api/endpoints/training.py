@@ -32,4 +32,11 @@ async def get_model(model_id: str):
     model = model_trainer.get_model(model_id)
     if not model:
         raise HTTPException(status_code=404, detail="模型不存在")
-    return ApiResponse(data=model)
+    # Strip internal fields that cannot be JSON-serialized
+    public_keys = {
+        "model_id", "name", "algorithm", "status",
+        "best_params", "cv_scores", "cv_mean", "cv_std",
+        "training_time_seconds", "feature_importance",
+        "created_at", "description",
+    }
+    return ApiResponse(data={k: v for k, v in model.items() if k in public_keys})

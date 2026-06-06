@@ -49,6 +49,13 @@
             <artifactId>elasticsearch-java</artifactId>
         </dependency>
 
+        <!-- Trino JDBC -->
+        <dependency>
+            <groupId>io.trino</groupId>
+            <artifactId>trino-jdbc</artifactId>
+            <version>435</version>
+        </dependency>
+
         <!-- Jackson -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>

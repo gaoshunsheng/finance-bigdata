@@ -3,7 +3,11 @@ package com.credit.platform.data.governance.quality;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
@@ -26,6 +30,15 @@ public class QualityMonitor {
 
     private final List<QualityRule> rules = new CopyOnWriteArrayList<>();
     private final List<QualityViolation> violations = new CopyOnWriteArrayList<>();
+
+    /** 唯一性检查: 已见值的去重集合，key 格式为 table.column:value */
+    private final Set<String> seenValues = ConcurrentHashMap.newKeySet();
+
+    /** 一致性检查: 可插拔的跨表引用校验器 */
+    private final Map<String, ConsistencyChecker> consistencyCheckers = new ConcurrentHashMap<>();
+
+    /** 及时性检查: 各表最近的数据到达时间 */
+    private final Map<String, LocalDateTime> lastArrivalTimes = new ConcurrentHashMap<>();
 
     /**
      * 注册质量规则。
@@ -61,7 +74,7 @@ public class QualityMonitor {
                 continue;
             }
 
-            boolean violated = evaluateRule(rule, value);
+            boolean violated = evaluateRule(rule, table, column, value);
             if (violated) {
                 QualityViolation v = new QualityViolation(
                         rule.getRuleId(),
@@ -123,7 +136,7 @@ public class QualityMonitor {
     }
 
     /** 评估单条规则 */
-    private boolean evaluateRule(QualityRule rule, Object value) {
+    private boolean evaluateRule(QualityRule rule, String table, String column, Object value) {
         String expression = rule.getExpression().toUpperCase();
 
         return switch (rule.getDimension()) {
@@ -154,18 +167,121 @@ public class QualityMonitor {
                 yield false;
             }
             case UNIQUENESS -> {
-                // 唯一性检查需要外部去重集合，这里标记为待验证
-                yield false;
+                // 唯一性检查: 使用 ConcurrentHashMap-backed Set 进行去重
+                if (value == null) yield false;
+                String compositeKey = table + "." + column + ":" + value;
+                boolean alreadySeen = !seenValues.add(compositeKey);
+                if (alreadySeen) {
+                    log.debug("唯一性违规: {} 已存在于 {}.{}", value, table, column);
+                }
+                yield alreadySeen;
             }
             case CONSISTENCY -> {
-                // 一致性检查需要跨表关联，这里标记为待验证
-                yield false;
+                // 一致性检查: REF:referenceTable.referenceColumn 格式
+                if (!expression.startsWith("REF:")) yield false;
+                String refPart = rule.getExpression().substring(4); // 保留原始大小写
+                ConsistencyChecker checker = consistencyCheckers.get(refPart);
+                if (checker == null) {
+                    log.debug("未注册一致性校验器: {}", refPart);
+                    yield false;
+                }
+                yield !checker.check(refPart, null, value);
             }
             case TIMELINESS -> {
-                // 及时性检查需要比对 SLA 时间，这里标记为待验证
-                yield false;
+                // 及时性检查: SLA:HH:mm 或 SLA:Xh 格式
+                if (!expression.startsWith("SLA:")) yield false;
+                LocalDateTime arrivalTime = lastArrivalTimes.get(table);
+                if (arrivalTime == null) {
+                    log.debug("未注册表 {} 的数据到达时间，跳过及时性检查", table);
+                    yield false;
+                }
+                String slaExpr = expression.substring(4).trim();
+                yield checkTimeliness(slaExpr, arrivalTime);
             }
         };
+    }
+
+    /**
+     * 检查数据到达时间是否满足 SLA 要求。
+     *
+     * @param slaExpr     SLA 表达式，如 "08:00" 或 "2H"
+     * @param arrivalTime 数据实际到达时间
+     * @return true 表示违反 SLA
+     */
+    private boolean checkTimeliness(String slaExpr, LocalDateTime arrivalTime) {
+        try {
+            if (slaExpr.endsWith("H")) {
+                // SLA:Xh 格式 — 数据必须在某个基准时间后 X 小时内到达
+                // 这里简化为: 检查到达时间的小时数是否超过 SLA 小时数
+                int slaHours = Integer.parseInt(slaExpr.substring(0, slaExpr.length() - 1).trim());
+                int arrivalHour = arrivalTime.getHour();
+                if (arrivalHour >= slaHours) {
+                    log.debug("及时性违规: 数据到达时间 {} 超过 SLA {} 小时", arrivalTime, slaHours);
+                    return true;
+                }
+                return false;
+            } else {
+                // SLA:HH:mm 格式 — 数据必须在当天指定时间之前到达
+                LocalTime slaTime = LocalTime.parse(slaExpr, DateTimeFormatter.ofPattern("H:mm"));
+                LocalTime arrivalLocalTime = arrivalTime.toLocalTime();
+                if (arrivalLocalTime.isAfter(slaTime)) {
+                    log.debug("及时性违规: 数据到达时间 {} 超过 SLA 截止时间 {}", arrivalLocalTime, slaTime);
+                    return true;
+                }
+                return false;
+            }
+        } catch (Exception e) {
+            log.warn("解析 SLA 表达式失败: {}", slaExpr, e);
+            return false;
+        }
+    }
+
+    // ========== 一致性校验接口 ==========
+
+    /**
+     * 跨表一致性校验器函数接口。
+     *
+     * <p>实现类负责查询参考表，判断给定值是否在参考列中存在。
+     */
+    @FunctionalInterface
+    public interface ConsistencyChecker {
+        /**
+         * @param refTable  参考表名（含列，如 dim_product.product_id）
+         * @param refColumn 参考列名（可为 null，已包含在 refTable 中）
+         * @param value     待校验的值
+         * @return true 表示值在参考表中存在（一致），false 表示不存在（不一致）
+         */
+        boolean check(String refTable, String refColumn, Object value);
+    }
+
+    /**
+     * 注册一致性校验器。
+     *
+     * @param refKey  参考标识，对应规则表达式中 REF: 后面的部分（如 dim_product.product_id）
+     * @param checker 校验器实现
+     */
+    public void registerConsistencyChecker(String refKey, ConsistencyChecker checker) {
+        consistencyCheckers.put(refKey, checker);
+        log.info("注册一致性校验器: {}", refKey);
+    }
+
+    /**
+     * 注册数据到达时间（用于及时性检查）。
+     *
+     * @param table       表名
+     * @param arrivalTime 数据实际到达时间
+     */
+    public void registerArrival(String table, LocalDateTime arrivalTime) {
+        lastArrivalTimes.put(table, arrivalTime);
+        log.info("注册表 {} 数据到达时间: {}", table, arrivalTime);
+    }
+
+    /**
+     * 清除唯一性检查的去重集合（用于测试清理或周期性重置）。
+     */
+    public void clearSeenValues() {
+        seenValues.clear();
+        log.debug("已清除唯一性去重集合");
     }
 
     private String buildViolationDetail(QualityRule rule, Object value) {

@@ -48,7 +48,7 @@ async def create_dataset(filter_params: SampleFilter):
         dataset = sample_manager.create_dataset(
             df=df,
             name=f"dataset_{filter_params.start_date or 'all'}",
-            filters=filter_params.model_dump(),
+            filters=filter_params,
         )
 
         return ApiResponse(

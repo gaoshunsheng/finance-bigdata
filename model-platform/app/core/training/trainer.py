@@ -426,9 +426,12 @@ class ModelTrainer:
             "feature_importance": result["feature_importance"],
             "created_at": now,
             "description": description,
+            "target_column": target_column,
+            "features": feature_cols,
             # 内部字段 (不返回给调用方, 仅用于后续评估/推理)
             "_best_estimator": result["best_estimator"],
             "_cv_results_detail": result["cv_results"],
+            "_dataset": dataset,
         }
 
         self._models[model_id] = model_record

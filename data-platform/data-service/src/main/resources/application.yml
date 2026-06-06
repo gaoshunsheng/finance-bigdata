@@ -30,6 +30,14 @@ elasticsearch:
   port: ${ES_PORT:9200}
   scheme: http
 
+# Trino 配置
+trino:
+  url: ${TRINO_URL:jdbc:trino://localhost:8086}
+  user: ${TRINO_USER:admin}
+  password: ${TRINO_PASSWORD:}
+  catalog: ${TRINO_CATALOG:hive}
+  schema: ${TRINO_SCHEMA:default}
+
 # Kafka 配置
 kafka:
   bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
