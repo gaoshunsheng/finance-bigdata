@@ -83,19 +83,6 @@ public class JwtService {
     }
 
     /**
-     * 使用指定密钥构造（方便测试）。
-     */
-    public JwtService(String secret) {
-        this.secretKey = Objects.requireNonNull(secret).getBytes(StandardCharsets.UTF_8);
-        this.cleanupScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
-            Thread t = new Thread(r, "jwt-cleanup");
-            t.setDaemon(true);
-            return t;
-        });
-        this.cleanupScheduler.scheduleAtFixedRate(this::cleanupExpiredTokens, 1, 1, TimeUnit.HOURS);
-    }
-
-    /**
      * 生成 Access Token。
      */
     public String generateAccessToken(String username, Role role) {
