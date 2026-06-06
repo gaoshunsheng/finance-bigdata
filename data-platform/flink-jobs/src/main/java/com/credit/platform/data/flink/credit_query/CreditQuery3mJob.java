@@ -58,6 +58,8 @@ public class CreditQuery3mJob {
         String bootstrapServers = getEnvOrDefault("KAFKA_BOOTSTRAP_SERVERS", DEFAULT_BOOTSTRAP_SERVERS);
         String groupId = getEnvOrDefault("KAFKA_GROUP_ID", DEFAULT_GROUP_ID);
         int parallelism = Integer.parseInt(getEnvOrDefault("FLINK_PARALLELISM", "1"));
+        long windowSizeMs = Long.parseLong(getEnvOrDefault("FLINK_WINDOW_SIZE_MS", String.valueOf(Time.days(90).toMilliseconds())));
+        long slideMs = Long.parseLong(getEnvOrDefault("FLINK_WINDOW_SLIDE_MS", String.valueOf(Time.hours(1).toMilliseconds())));
 
         // ---- 执行环境 ----
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -86,8 +88,8 @@ public class CreditQuery3mJob {
                 )
                 // 3. 按客户 ID 分组
                 .keyBy(event -> event.customerId)
-                // 4. 滑动窗口: 90 天，每 1 小时滑动
-                .window(SlidingEventTimeWindows.of(Time.days(90), Time.hours(1)))
+                // 4. 滑动窗口: 默认 90 天/1 小时滑动，可通过环境变量调整
+                .window(SlidingEventTimeWindows.of(Time.milliseconds(windowSizeMs), Time.milliseconds(slideMs)))
                 // 5. 聚合: 统计查询次数
                 .aggregate(new QueryCountAggregator(), new QueryCountWindowFunction());
 

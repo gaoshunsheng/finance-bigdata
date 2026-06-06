@@ -60,6 +60,8 @@ public class Overdue6mJob {
         String bootstrapServers = getEnvOrDefault("KAFKA_BOOTSTRAP_SERVERS", DEFAULT_BOOTSTRAP_SERVERS);
         String groupId = getEnvOrDefault("KAFKA_GROUP_ID", DEFAULT_GROUP_ID);
         int parallelism = Integer.parseInt(getEnvOrDefault("FLINK_PARALLELISM", "1"));
+        long windowSizeMs = Long.parseLong(getEnvOrDefault("FLINK_WINDOW_SIZE_MS", String.valueOf(Time.days(180).toMilliseconds())));
+        long slideMs = Long.parseLong(getEnvOrDefault("FLINK_WINDOW_SLIDE_MS", String.valueOf(Time.days(1).toMilliseconds())));
 
         // ---- 执行环境 ----
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -88,8 +90,8 @@ public class Overdue6mJob {
                 )
                 // 3. 按客户 ID 分组
                 .keyBy(event -> event.customerId)
-                // 4. 滑动窗口: 180 天，每 1 天滑动
-                .window(SlidingEventTimeWindows.of(Time.days(180), Time.days(1)))
+                // 4. 滑动窗口: 默认 180 天/1 天滑动，可通过环境变量调整
+                .window(SlidingEventTimeWindows.of(Time.milliseconds(windowSizeMs), Time.milliseconds(slideMs)))
                 // 5. 聚合: 统计逾期次数和逾期总金额
                 .aggregate(new OverdueCountAggregator(), new OverdueCountWindowFunction());
 

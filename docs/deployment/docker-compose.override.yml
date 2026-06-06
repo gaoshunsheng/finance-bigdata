@@ -15,3 +15,15 @@ services:
   data-service:
     ports:
       - "18083:8083"
+
+  # Flink 测试窗口参数 — 生产环境不设这些变量即使用代码中的默认值
+  # 测试环境按比例缩小: 天→分钟, 用于加速实时特征计算验证
+  flink-jobmanager:
+    environment:
+      FLINK_WINDOW_SIZE_MS: "5400000"     # 90 分钟 (生产: 90天=7776000000ms)
+      FLINK_WINDOW_SLIDE_MS: "60000"      # 1 分钟  (生产: 1小时=3600000ms)
+
+  flink-taskmanager:
+    environment:
+      FLINK_WINDOW_SIZE_MS: "5400000"
+      FLINK_WINDOW_SLIDE_MS: "60000"

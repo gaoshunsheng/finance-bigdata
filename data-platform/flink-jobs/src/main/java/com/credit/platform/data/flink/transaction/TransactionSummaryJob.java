@@ -61,6 +61,8 @@ public class TransactionSummaryJob {
 
     public static void main(String[] args) throws Exception {
         // 1. 创建流执行环境
+        long windowSizeMs = Long.parseLong(getEnv("FLINK_WINDOW_SIZE_MS", String.valueOf(Time.hours(1).toMilliseconds())));
+
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         // 2. 构建 Kafka Source
@@ -96,7 +98,7 @@ public class TransactionSummaryJob {
         // 5. 按 customerId 分组 → 1 小时滚动窗口 → 聚合计算
         DataStream<TransactionSummary> summaryStream = eventStream
                 .keyBy(event -> event.customerId)
-                .window(TumblingEventTimeWindows.of(Time.hours(1)))
+                .window(TumblingEventTimeWindows.of(Time.milliseconds(windowSizeMs)))
                 .aggregate(new TransactionAggregator())
                 .name("aggregate-transaction-summary");
 
