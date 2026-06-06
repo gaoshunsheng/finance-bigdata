@@ -57,6 +57,9 @@ LABEL maintainer="finance-bigdata-team"
 LABEL service=${SERVICE_NAME}
 LABEL description="Finance Bigdata Platform - ${SERVICE_NAME}"
 
+# Install curl for health check (must be before USER switch)
+RUN apk add --no-cache curl
+
 # Add a non-root user for security
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
@@ -73,9 +76,6 @@ USER appuser
 
 # Expose service port
 EXPOSE ${SERVICE_PORT}
-
-# Health check endpoint (requires curl)
-RUN apk add --no-cache curl
 
 HEALTHCHECK --interval=15s --timeout=5s --retries=3 --start-period=60s \
     CMD curl -sf http://localhost:${SERVICE_PORT}/actuator/health || exit 1
