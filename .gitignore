@@ -12,3 +12,4 @@ model-platform/app/storage/
 *.onnx
 *.pkl
 *.pickle
+.worktrees/
