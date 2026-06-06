@@ -498,6 +498,44 @@ services:
     networks:
       - finance-net
 
+  # ---------------------------------------------------------------------------
+  # Application: Decision UI (Vue 3 + Nginx)
+  # ---------------------------------------------------------------------------
+  decision-ui:
+    build:
+      context: ../../decision-ui
+      dockerfile: Dockerfile
+    container_name: finance-decision-ui
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    networks:
+      - finance-net
+
+  # ---------------------------------------------------------------------------
+  # Logging: Filebeat — Log collection pipeline
+  # ---------------------------------------------------------------------------
+  filebeat:
+    image: elastic/filebeat:8.13.4
+    container_name: finance-filebeat
+    restart: unless-stopped
+    user: root
+    volumes:
+      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - filebeat-data:/usr/share/filebeat/data
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      TZ: "Asia/Shanghai"
+    command: ["--strict.perms=false"]
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+    networks:
+      - finance-net
+
 # =============================================================================
 # Volumes
 # =============================================================================
@@ -527,6 +565,8 @@ volumes:
   hadoop-nn-data:
     driver: local
   hadoop-dn-data:
+    driver: local
+  filebeat-data:
     driver: local
 
 # =============================================================================

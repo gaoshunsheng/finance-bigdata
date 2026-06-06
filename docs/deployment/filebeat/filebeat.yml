@@ -1,0 +1,25 @@
+filebeat.inputs:
+  - type: container
+    paths:
+      - /var/lib/docker/containers/*/*.log
+    processors:
+      - add_kubernetes_metadata: ~
+      - decode_json_fields:
+          fields: ["log"]
+          target: "json"
+          overwrite_keys: true
+
+  - type: kafka
+    hosts: ["kafka:9092"]
+    topics: ["decision-log", "data-quality-alert"]
+    group_id: "filebeat-consumer"
+
+output.elasticsearch:
+  hosts: ["elasticsearch:9200"]
+  index: "finance-log-%{+yyyy.MM}"
+
+logging.level: info
+logging.to_files: true
+logging.files:
+  path: /usr/share/filebeat/data/log
+  name: filebeat
