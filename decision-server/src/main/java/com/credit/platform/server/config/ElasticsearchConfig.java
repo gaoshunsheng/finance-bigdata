@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.apache.http.HttpHost;
 import org.elasticsearch.client.RestClient;
+import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -17,7 +18,9 @@ import org.springframework.context.annotation.Configuration;
  * <p>从 application.yml 读取连接参数，创建 ElasticsearchClient Bean。</p>
  */
 @Configuration
-public class ElasticsearchConfig {
+public class ElasticsearchConfig implements DisposableBean {
+
+    private volatile RestClient restClient;
 
     @Value("${elasticsearch.host:localhost}")
     private String host;
@@ -34,10 +37,21 @@ public class ElasticsearchConfig {
         mapper.registerModule(new JavaTimeModule());
         mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
-        RestClient restClient = RestClient.builder(new HttpHost(host, port, scheme))
+        restClient = RestClient.builder(new HttpHost(host, port, scheme))
                 .build();
 
         RestClientTransport transport = new RestClientTransport(restClient, new JacksonJsonpMapper(mapper));
         return new ElasticsearchClient(transport);
+    }
+
+    @Override
+    public void destroy() {
+        if (restClient != null) {
+            try {
+                restClient.close();
+            } catch (Exception e) {
+                // 静默关闭
+            }
+        }
     }
 }

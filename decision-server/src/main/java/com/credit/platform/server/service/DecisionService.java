@@ -1,13 +1,10 @@
 package com.credit.platform.server.service;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicLong;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,15 +47,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class DecisionService {
 
     private static final Logger log = LoggerFactory.getLogger(DecisionService.class);
-    private static final DateTimeFormatter ID_FORMATTER =
-        DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
 
     private final VersionedRuleCache ruleCache;
     private final ScorecardExecutor scorecardExecutor;
     private final TracePublisher tracePublisher;
     private final DecisionLogRepository decisionLogRepository;
     private final ObjectMapper objectMapper;
-    private final AtomicLong requestCounter = new AtomicLong(0);
 
     public DecisionService(VersionedRuleCache ruleCache,
                            ScorecardExecutor scorecardExecutor,
@@ -272,9 +266,7 @@ public class DecisionService {
     }
 
     private String generateDecisionId() {
-        String timestamp = LocalDateTime.now().format(ID_FORMATTER);
-        long seq = requestCounter.incrementAndGet() % 100000;
-        return String.format("DEC_%s_%05d", timestamp, seq);
+        return "DEC_" + UUID.randomUUID().toString().replace("-", "").substring(0, 24);
     }
 
     private Map<String, Object> buildExtra(FlowExecutionResult result) {

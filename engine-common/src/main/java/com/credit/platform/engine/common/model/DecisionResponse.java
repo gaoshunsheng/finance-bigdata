@@ -1,5 +1,7 @@
 package com.credit.platform.engine.common.model;
 
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -56,7 +58,7 @@ public class DecisionResponse {
         this.decisionId = decisionId;
         this.result = result;
         this.score = score;
-        this.extra = extra;
+        this.extra = extra != null ? new HashMap<>(extra) : null;
         this.rejectReason = rejectReason;
         this.rejectCode = rejectCode;
         this.traceId = traceId;
@@ -171,11 +173,11 @@ public class DecisionResponse {
     }
 
     public Map<String, Object> getExtra() {
-        return extra;
+        return extra != null ? Collections.unmodifiableMap(extra) : null;
     }
 
     public void setExtra(Map<String, Object> extra) {
-        this.extra = extra;
+        this.extra = extra != null ? new HashMap<>(extra) : null;
     }
 
     public String getRejectReason() {

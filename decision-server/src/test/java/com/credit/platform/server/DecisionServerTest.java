@@ -460,9 +460,9 @@ class DecisionServerTest {
             doc.setRulesExecuted(List.of("R001", "R002"));
             doc.setExecutionTimeMs(15);
 
-            when(logRepository.findByTraceId("T001")).thenReturn(List.of(doc));
+            when(logRepository.findById("dec-001")).thenReturn(java.util.Optional.of(doc));
 
-            Map<String, Object> report = service.getReport("T001");
+            Map<String, Object> report = service.getReport("dec-001");
 
             assertNotNull(report);
             assertEquals("dec-001", report.get("decisionId"));

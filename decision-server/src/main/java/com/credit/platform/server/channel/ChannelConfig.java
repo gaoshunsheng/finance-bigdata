@@ -6,6 +6,8 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
+import org.springframework.context.annotation.Configuration;
+
 /**
  * 渠道配置 — 定义不同渠道的字段映射和默认值。
  * <p>
@@ -17,6 +19,7 @@ import java.util.Set;
  * </ul>
  * </p>
  */
+@Configuration
 public class ChannelConfig {
 
     /** 支持的渠道集合 */
