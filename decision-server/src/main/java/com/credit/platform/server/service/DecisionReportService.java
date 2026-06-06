@@ -53,7 +53,7 @@ public class DecisionReportService {
                     .aggregations("daily", Aggregation.of(a -> a
                             .dateHistogram(dh -> dh
                                     .field("timestamp")
-                                    .calendarInterval(CalendarInterval.Month)
+                                    .calendarInterval(CalendarInterval.Day)
                                     .format("yyyy-MM-dd")
                                     .minDocCount(0))
                             .aggregations("by_result", Aggregation.of(aa -> aa

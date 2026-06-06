@@ -111,18 +111,26 @@ public class VersionedRuleCache {
         Objects.requireNonNull(artifact, "artifact must not be null");
 
         VersionedArtifact<T> versioned = new VersionedArtifact<>(artifactId, version, artifact);
-        AtomicReference<VersionedArtifact<?>> ref = mainCache.get(artifactId,
-            k -> new AtomicReference<>());
 
-        // 将当前版本存入历史，然后原子替换
-        VersionedArtifact<?> old = ref.get();
-        if (old != null) {
-            saveToHistory(artifactId, old);
+        // 安全修复: saveToHistory + ref.set 必须在同一锁内，防止竞态
+        ReentrantLock lock = versionLocks.computeIfAbsent(artifactId, k -> new ReentrantLock());
+        lock.lock();
+        try {
+            AtomicReference<VersionedArtifact<?>> ref = mainCache.get(artifactId,
+                k -> new AtomicReference<>());
+
+            // 将当前版本存入历史，然后原子替换
+            VersionedArtifact<?> old = ref.get();
+            if (old != null) {
+                saveToHistory(artifactId, old);
+            }
+            ref.set(versioned);
+
+            // 确保主缓存中有引用
+            mainCache.put(artifactId, ref);
+        } finally {
+            lock.unlock();
         }
-        ref.set(versioned);
-
-        // 确保主缓存中有引用
-        mainCache.put(artifactId, ref);
 
         LOGGER.log(Level.FINE, "Cache PUT: {0} v{1}", new Object[]{artifactId, version});
     }
@@ -296,15 +304,22 @@ public class VersionedRuleCache {
             VersionedArtifact<T> versioned = new VersionedArtifact<>(
                 event.getArtifactId(), event.getVersion(), artifact);
 
-            // CopyOnWrite: 原子替换
-            AtomicReference<VersionedArtifact<?>> ref = mainCache.get(event.getArtifactId(),
-                k -> new AtomicReference<>());
-            VersionedArtifact<?> old = ref.get();
-            if (old != null) {
-                saveToHistory(event.getArtifactId(), old);
+            // 安全修复: saveToHistory + ref.set 在同一锁内
+            ReentrantLock lock = versionLocks.computeIfAbsent(event.getArtifactId(), k -> new ReentrantLock());
+            lock.lock();
+            try {
+                // CopyOnWrite: 原子替换
+                AtomicReference<VersionedArtifact<?>> ref = mainCache.get(event.getArtifactId(),
+                    k -> new AtomicReference<>());
+                VersionedArtifact<?> old = ref.get();
+                if (old != null) {
+                    saveToHistory(event.getArtifactId(), old);
+                }
+                ref.set(versioned);
+                mainCache.put(event.getArtifactId(), ref);
+            } finally {
+                lock.unlock();
             }
-            ref.set(versioned);
-            mainCache.put(event.getArtifactId(), ref);
 
             LOGGER.info("Reload: " + event.getArtifactId() + " v" + event.getVersion()
                 + " from " + event.getSource());
@@ -324,8 +339,20 @@ public class VersionedRuleCache {
      * @param artifactId 产物 ID
      */
     public void invalidate(String artifactId) {
-        mainCache.invalidate(artifactId);
-        versionHistory.remove(artifactId);
+        // 安全修复: 先获取锁再移除，防止并发 rollback/invalidate 竞态
+        ReentrantLock lock = versionLocks.remove(artifactId);
+        if (lock != null) {
+            lock.lock();
+            try {
+                mainCache.invalidate(artifactId);
+                versionHistory.remove(artifactId);
+            } finally {
+                lock.unlock();
+            }
+        } else {
+            mainCache.invalidate(artifactId);
+            versionHistory.remove(artifactId);
+        }
     }
 
     /**
@@ -334,6 +361,7 @@ public class VersionedRuleCache {
     public void invalidateAll() {
         mainCache.invalidateAll();
         versionHistory.clear();
+        versionLocks.clear();
     }
 
     // ==================== 统计信息 ====================

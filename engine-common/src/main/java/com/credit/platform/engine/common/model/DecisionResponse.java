@@ -128,6 +128,22 @@ public class DecisionResponse {
                 null, null, null, traceId, durationMs);
     }
 
+    /**
+     * 构建系统错误响应 — 用于决策执行异常时返回。
+     *
+     * @param decisionId 决策唯一ID
+     * @param traceId    追踪ID
+     * @param errorMsg   错误信息
+     * @param durationMs 决策耗时 (毫秒)
+     * @return 错误的决策响应
+     */
+    public static DecisionResponse error(String decisionId, String traceId,
+                                          String errorMsg, long durationMs) {
+        return new DecisionResponse(decisionId, DecisionResult.MANUAL, null,
+                Map.of("error", true, "errorMessage", errorMsg != null ? errorMsg : "Unknown error"),
+                errorMsg, "SYSTEM_ERROR", traceId, durationMs);
+    }
+
     // ========== Getters & Setters ==========
 
     public String getDecisionId() {

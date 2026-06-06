@@ -116,13 +116,16 @@ public class DecisionService {
             return manualResp;
 
         } catch (Exception e) {
+            // 安全修复: 系统异常不应静默返回 MANUAL，应明确返回错误
             log.error("Decision execution failed for {}", decisionId, e);
-            tracer.finish("MANUAL", null, "系统异常: " + e.getMessage(), "SYSTEM_ERROR");
+            tracer.finish("ERROR", null, "系统异常: " + e.getMessage(), "SYSTEM_ERROR");
             publishTrace(tracer.getTrace());
-            saveDecisionLog(decisionId, strategyId, tracer.getTrace().getTraceId(), "MANUAL",
-                0, null, null, applicant, metadata, System.currentTimeMillis() - startMs);
-            return DecisionResponse.manual(decisionId, tracer.getTrace().getTraceId(),
-                System.currentTimeMillis() - startMs);
+            saveDecisionLog(decisionId, strategyId, tracer.getTrace().getTraceId(), "ERROR",
+                0, e.getMessage(), null, applicant, metadata, System.currentTimeMillis() - startMs);
+            // 返回 ERROR 响应而非 MANUAL，让调用方知道发生了系统错误
+            DecisionResponse errorResp = DecisionResponse.error(decisionId, tracer.getTrace().getTraceId(),
+                "Decision execution failed: " + e.getMessage(), System.currentTimeMillis() - startMs);
+            return errorResp;
         }
     }
 
@@ -212,17 +215,18 @@ public class DecisionService {
      * @return 决策报告 (JSON Map)，不存在时返回 null
      */
     public Map<String, Object> getReport(String decisionId) {
-        List<DecisionLogDocument> logs = decisionLogRepository.findByTraceId(decisionId);
-        if (logs.isEmpty()) {
+        // 安全修复: 按 decisionId (文档 ID) 查询，而非 traceId
+        DecisionLogDocument doc = decisionLogRepository.findById(decisionId).orElse(null);
+        if (doc == null) {
             return null;
         }
-        DecisionLogDocument doc = logs.get(0);
         Map<String, Object> report = new LinkedHashMap<>();
         report.put("decisionId", doc.getId());
         report.put("traceId", doc.getTraceId());
         report.put("result", doc.getDecisionResult());
         report.put("score", doc.getScore());
         report.put("riskLevel", doc.getRiskLevel());
+        report.put("rejectReason", doc.getRejectReason());
         report.put("rulesExecuted", doc.getRulesExecuted());
         report.put("executionTimeMs", doc.getExecutionTimeMs());
         report.put("timestamp", doc.getTimestamp());
@@ -243,8 +247,9 @@ public class DecisionService {
             doc.setScore(score);
             doc.setRulesExecuted(rulesExecuted);
             doc.setExecutionTimeMs(durationMs);
+            // 安全修复: rejectReason 存入专用字段，而非覆盖 riskLevel
             if (reason != null) {
-                doc.setRiskLevel(reason);
+                doc.setRejectReason(reason);
             }
             try {
                 doc.setInputSnapshot(objectMapper.writeValueAsString(input));

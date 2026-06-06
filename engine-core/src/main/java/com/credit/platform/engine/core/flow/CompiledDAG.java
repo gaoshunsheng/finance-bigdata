@@ -62,6 +62,56 @@ public final class CompiledDAG implements CompiledRule {
         for (Map.Entry<String, List<FlowEdge>> e : outMap.entrySet()) {
             this.outgoingEdges.put(e.getKey(), Collections.unmodifiableList(e.getValue()));
         }
+
+        // 安全修复: 编译时检测 DAG 中的环，防止无限循环
+        detectCycles();
+    }
+
+    /**
+     * 使用 DFS 检测环 — Kahn 算法验证 DAG 有效性。
+     * 如果存在环，抛出 IllegalStateException。
+     */
+    private void detectCycles() {
+        // 计算入度
+        Map<String, Integer> inDegree = new HashMap<>();
+        for (String nodeId : nodes.keySet()) {
+            inDegree.put(nodeId, 0);
+        }
+        for (FlowEdge edge : edges) {
+            inDegree.merge(edge.getTo(), 1, Integer::sum);
+        }
+
+        // 拓扑排序 (Kahn's algorithm)
+        java.util.Queue<String> queue = new java.util.LinkedList<>();
+        for (Map.Entry<String, Integer> entry : inDegree.entrySet()) {
+            if (entry.getValue() == 0) {
+                queue.add(entry.getKey());
+            }
+        }
+
+        int visited = 0;
+        while (!queue.isEmpty()) {
+            String nodeId = queue.poll();
+            visited++;
+            List<FlowEdge> outEdges = outgoingEdges.get(nodeId);
+            if (outEdges != null) {
+                for (FlowEdge edge : outEdges) {
+                    int newDegree = inDegree.get(edge.getTo()) - 1;
+                    inDegree.put(edge.getTo(), newDegree);
+                    if (newDegree == 0) {
+                        queue.add(edge.getTo());
+                    }
+                }
+            }
+        }
+
+        // 如果访问的节点数小于总节点数，说明存在环
+        if (visited < nodes.size()) {
+            throw new IllegalStateException(
+                "DAG '" + flowId + "' contains a cycle — only " + visited
+                + " of " + nodes.size() + " nodes reachable in topological order. "
+                + "Cyclic decision flows are not allowed.");
+        }
     }
 
     /**
@@ -86,8 +136,14 @@ public final class CompiledDAG implements CompiledRule {
         }
 
         FlowNode current = entry;
+        int maxSteps = nodes.size() + 1; // 安全上限：DAG 最多 N 个节点
 
         while (current != null) {
+            if (path.size() >= maxSteps) {
+                // 安全保护: 防止无限循环（环检测应已阻止，这是双重保险）
+                LOGGER.warning("DAG execution exceeded max steps (" + maxSteps + ") for flow: " + flowId);
+                break;
+            }
             path.add(current.getId());
 
             // 执行当前节点

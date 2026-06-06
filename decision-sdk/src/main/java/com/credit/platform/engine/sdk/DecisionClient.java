@@ -110,12 +110,18 @@ public class DecisionClient {
      * @return true 表示决策引擎服务可用
      */
     public boolean isHealthy() {
+        java.net.HttpURLConnection conn = null;
         try {
             String url = config.getEndpoint() + "/actuator/health";
-            java.net.HttpURLConnection conn = createGetConnection(url);
+            conn = createGetConnection(url);
             return conn.getResponseCode() == HTTP_OK;
         } catch (Exception e) {
             return false;
+        } finally {
+            // 安全修复: 关闭连接释放资源
+            if (conn != null) {
+                conn.disconnect();
+            }
         }
     }
 
@@ -206,7 +212,27 @@ public class DecisionClient {
 
     private String escapeJson(String s) {
         if (s == null) return "";
-        return s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n");
+        StringBuilder sb = new StringBuilder(s.length());
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            switch (c) {
+                case '\\' -> sb.append("\\\\");
+                case '"' -> sb.append("\\\"");
+                case '\n' -> sb.append("\\n");
+                case '\r' -> sb.append("\\r");
+                case '\t' -> sb.append("\\t");
+                case '\b' -> sb.append("\\b");
+                case '\f' -> sb.append("\\f");
+                default -> {
+                    if (c < 0x20) {
+                        sb.append(String.format("\\u%04x", (int) c));
+                    } else {
+                        sb.append(c);
+                    }
+                }
+            }
+        }
+        return sb.toString();
     }
 
     private DecisionResponse parseResponse(String json) {
@@ -231,13 +257,42 @@ public class DecisionClient {
         return response;
     }
 
+    /**
+     * 提取 JSON 字符串 — 处理转义引号，从最外层匹配。
+     */
     private String extractString(String json, String key) {
         String pattern = "\"" + key + "\":\"";
-        int idx = json.indexOf(pattern);
+        int idx = findTopLevelKey(json, pattern);
         if (idx < 0) return null;
         int start = idx + pattern.length();
-        int end = json.indexOf('"', start);
+        // 安全修复: 处理转义引号
+        int end = start;
+        while (end < json.length()) {
+            if (json.charAt(end) == '\\') {
+                end += 2; // 跳过转义字符
+            } else if (json.charAt(end) == '"') {
+                break;
+            } else {
+                end++;
+            }
+        }
         return end > start ? json.substring(start, end) : null;
+    }
+
+    /**
+     * 在 JSON 中查找最外层 key，防止嵌套 key 错位。
+     */
+    private int findTopLevelKey(String json, String pattern) {
+        int depth = 0;
+        for (int i = 0; i <= json.length() - pattern.length(); i++) {
+            char c = json.charAt(i);
+            if (c == '{' || c == '[') depth++;
+            else if (c == '}' || c == ']') depth--;
+            else if (depth <= 1 && json.startsWith(pattern, i)) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     private Integer extractInteger(String json, String key) {
@@ -283,12 +338,19 @@ public class DecisionClient {
     }
 
     private String readError(java.net.HttpURLConnection conn) {
-        try (java.io.BufferedReader reader = new java.io.BufferedReader(
-            new java.io.InputStreamReader(conn.getErrorStream(), java.nio.charset.StandardCharsets.UTF_8))) {
-            StringBuilder sb = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) sb.append(line);
-            return sb.toString();
+        // 安全修复: getErrorStream() 可能返回 null
+        try {
+            java.io.InputStream errorStream = conn.getErrorStream();
+            if (errorStream == null) {
+                return "no error body";
+            }
+            try (java.io.BufferedReader reader = new java.io.BufferedReader(
+                new java.io.InputStreamReader(errorStream, java.nio.charset.StandardCharsets.UTF_8))) {
+                StringBuilder sb = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) sb.append(line);
+                return sb.toString();
+            }
         } catch (Exception e) {
             return "unable to read error stream";
         }

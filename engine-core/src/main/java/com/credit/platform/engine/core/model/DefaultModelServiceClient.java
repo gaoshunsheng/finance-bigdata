@@ -48,6 +48,11 @@ public class DefaultModelServiceClient implements ModelServiceClient {
             return buildMockResponse(request);
         }
 
+        // 安全修复: 防止负超时值导致 IllegalArgumentException
+        if (timeoutMs <= 0) {
+            timeoutMs = config.getTimeoutMs();
+        }
+
         Exception lastException = null;
         for (int attempt = 0; attempt <= config.getMaxRetries(); attempt++) {
             try {
@@ -72,12 +77,18 @@ public class DefaultModelServiceClient implements ModelServiceClient {
         if (config.getEndpoint() == null || config.getEndpoint().isEmpty()) {
             return false;
         }
+        HttpURLConnection conn = null;
         try {
-            HttpURLConnection conn = createConnection(config.getEndpoint() + "/health", 2000);
+            conn = createConnection(config.getEndpoint() + "/health", 2000);
             conn.setRequestMethod("GET");
             return conn.getResponseCode() == HTTP_OK;
         } catch (Exception e) {
             return false;
+        } finally {
+            // 安全修复: 关闭连接释放资源
+            if (conn != null) {
+                conn.disconnect();
+            }
         }
     }
 
@@ -196,7 +207,27 @@ public class DefaultModelServiceClient implements ModelServiceClient {
 
     private String escapeJson(String s) {
         if (s == null) return "";
-        return s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n");
+        StringBuilder sb = new StringBuilder(s.length());
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            switch (c) {
+                case '\\' -> sb.append("\\\\");
+                case '"' -> sb.append("\\\"");
+                case '\n' -> sb.append("\\n");
+                case '\r' -> sb.append("\\r");
+                case '\t' -> sb.append("\\t");
+                case '\b' -> sb.append("\\b");
+                case '\f' -> sb.append("\\f");
+                default -> {
+                    if (c < 0x20) {
+                        sb.append(String.format("\\u%04x", (int) c));
+                    } else {
+                        sb.append(c);
+                    }
+                }
+            }
+        }
+        return sb.toString();
     }
 
     // ========== 反序列化 ==========
@@ -217,14 +248,18 @@ public class DefaultModelServiceClient implements ModelServiceClient {
             .build();
     }
 
+    /**
+     * 提取 JSON 数值 — 从最外层匹配开始查找，避免嵌套 key 错位。
+     */
     private double extractDouble(String json, String key) {
         String pattern = "\"" + key + "\":";
-        int idx = json.indexOf(pattern);
+        // 安全修复: 从最外层匹配，跳过嵌套对象中的同名 key
+        int idx = findTopLevelKey(json, pattern);
         if (idx < 0) return 0.0;
         int start = idx + pattern.length();
         int end = start;
         while (end < json.length() && (Character.isDigit(json.charAt(end))
-            || json.charAt(end) == '.' || json.charAt(end) == '-')) {
+            || json.charAt(end) == '.' || json.charAt(end) == '-' || json.charAt(end) == 'e' || json.charAt(end) == 'E')) {
             end++;
         }
         try {
@@ -234,13 +269,70 @@ public class DefaultModelServiceClient implements ModelServiceClient {
         }
     }
 
+    /**
+     * 提取 JSON 字符串 — 处理转义引号。
+     */
     private String extractString(String json, String key) {
         String pattern = "\"" + key + "\":\"";
-        int idx = json.indexOf(pattern);
+        int idx = findTopLevelKey(json, pattern);
         if (idx < 0) return null;
         int start = idx + pattern.length();
-        int end = json.indexOf('"', start);
-        return end > start ? json.substring(start, end) : null;
+        // 安全修复: 处理转义引号，不提前终止
+        int end = start;
+        while (end < json.length()) {
+            if (json.charAt(end) == '\\') {
+                end += 2; // 跳过转义字符
+            } else if (json.charAt(end) == '"') {
+                break;
+            } else {
+                end++;
+            }
+        }
+        return end > start ? unescapeJson(json.substring(start, end)) : null;
+    }
+
+    /**
+     * 在 JSON 中查找最外层的 key 位置（深度 0 或 1）。
+     * 防止嵌套对象中的同名 key 导致错位。
+     */
+    private int findTopLevelKey(String json, String pattern) {
+        int depth = 0;
+        for (int i = 0; i <= json.length() - pattern.length(); i++) {
+            char c = json.charAt(i);
+            if (c == '{' || c == '[') depth++;
+            else if (c == '}' || c == ']') depth--;
+            else if (depth <= 1 && json.startsWith(pattern, i)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * 反转义 JSON 字符串中的转义序列。
+     */
+    private String unescapeJson(String s) {
+        if (s == null) return null;
+        StringBuilder sb = new StringBuilder(s.length());
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c == '\\' && i + 1 < s.length()) {
+                char next = s.charAt(i + 1);
+                switch (next) {
+                    case '"' -> { sb.append('"'); i++; }
+                    case '\\' -> { sb.append('\\'); i++; }
+                    case 'n' -> { sb.append('\n'); i++; }
+                    case 'r' -> { sb.append('\r'); i++; }
+                    case 't' -> { sb.append('\t'); i++; }
+                    case 'b' -> { sb.append('\b'); i++; }
+                    case 'f' -> { sb.append('\f'); i++; }
+                    default -> sb.append(c);
+                }
+            } else {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
     }
 
     // ========== 工具方法 ==========
