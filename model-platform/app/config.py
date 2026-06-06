@@ -12,19 +12,19 @@ REPORT_STORAGE_DIR = BASE_DIR / "storage" / "reports"
 for d in [MODEL_STORAGE_DIR, DATA_STORAGE_DIR, REPORT_STORAGE_DIR]:
     d.mkdir(parents=True, exist_ok=True)
 
-# Server
-HOST = os.getenv("MODEL_PLATFORM_HOST", "0.0.0.0")
-PORT = int(os.getenv("MODEL_PLATFORM_PORT", "8082"))
+# Server — support both MODEL_PLATFORM_* and generic APP_* / HOST env vars
+HOST = os.getenv("MODEL_PLATFORM_HOST", os.getenv("APP_HOST", "0.0.0.0"))
+PORT = int(os.getenv("MODEL_PLATFORM_PORT", os.getenv("APP_PORT", "8082")))
 DEBUG = os.getenv("MODEL_PLATFORM_DEBUG", "false").lower() == "true"
 
-# Database
+# Database — support both MODEL_PLATFORM_DB_URL and DATABASE_URL
 DATABASE_URL = os.getenv(
     "MODEL_PLATFORM_DB_URL",
-    "mysql+pymysql://root:password@localhost:3306/model_platform"
+    os.getenv("DATABASE_URL", "mysql+pymysql://root:password@localhost:3306/model_platform")
 )
 
-# Redis
-REDIS_URL = os.getenv("MODEL_PLATFORM_REDIS_URL", "redis://localhost:6379/2")
+# Redis — support both MODEL_PLATFORM_REDIS_URL and REDIS_URL
+REDIS_URL = os.getenv("MODEL_PLATFORM_REDIS_URL", os.getenv("REDIS_URL", "redis://localhost:6379/2"))
 
 # gRPC
 GRPC_PORT = int(os.getenv("MODEL_PLATFORM_GRPC_PORT", "50051"))

@@ -223,7 +223,11 @@ services:
       APP_HOST: "0.0.0.0"
       APP_PORT: "8082"
       APP_WORKERS: "4"
-      DATABASE_URL: mysql+pymysql://${MYSQL_USER:-credit_admin}:${MYSQL_PASSWORD:-credit_pass_2024}@mysql:3306/${MYSQL_DATABASE:-credit_platform}?charset=utf8mb4
+      MODEL_PLATFORM_HOST: "0.0.0.0"
+      MODEL_PLATFORM_PORT: "8082"
+      MODEL_PLATFORM_DB_URL: mysql+pymysql://${MYSQL_USER:-credit_admin}:${MYSQL_PASSWORD:-credit_pass_2024}@mysql:3306/model_platform?charset=utf8mb4
+      DATABASE_URL: mysql+pymysql://${MYSQL_USER:-credit_admin}:${MYSQL_PASSWORD:-credit_pass_2024}@mysql:3306/model_platform?charset=utf8mb4
+      MODEL_PLATFORM_REDIS_URL: redis://:${REDIS_PASSWORD:-redis_pass_2024}@redis:6379/2
       REDIS_HOST: redis
       REDIS_PORT: "6379"
       REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_pass_2024}
@@ -400,7 +404,7 @@ services:
     restart: unless-stopped
     command: ["jobmanager"]
     ports:
-      - "8081:8081"
+      - "8088:8081"
       - "6123:6123"
     environment:
       FLINK_PROPERTIES: "jobmanager.rpc.address: flink-jobmanager"
