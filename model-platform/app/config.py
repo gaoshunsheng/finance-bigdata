@@ -18,10 +18,22 @@ PORT = int(os.getenv("MODEL_PLATFORM_PORT", os.getenv("APP_PORT", "8082")))
 DEBUG = os.getenv("MODEL_PLATFORM_DEBUG", "false").lower() == "true"
 
 # Database — support both MODEL_PLATFORM_DB_URL and DATABASE_URL
-DATABASE_URL = os.getenv(
-    "MODEL_PLATFORM_DB_URL",
-    os.getenv("DATABASE_URL", "mysql+pymysql://root:password@localhost:3306/model_platform")
-)
+# SECURITY: No hardcoded password. Must be set via environment variable.
+_db_url = os.getenv("MODEL_PLATFORM_DB_URL", os.getenv("DATABASE_URL"))
+if not _db_url:
+    raise RuntimeError(
+        "Database URL must be configured via MODEL_PLATFORM_DB_URL or DATABASE_URL environment variable. "
+        "Example: mysql+pymysql://user:password@localhost:3306/model_platform"
+    )
+DATABASE_URL = _db_url
+
+# CORS — 从环境变量读取允许的源，多个源用逗号分隔
+# 安全修复: 不再硬编码数据库密码为默认值
+CORS_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:8080").split(",")
+    if origin.strip()
+]
 
 # Redis — support both MODEL_PLATFORM_REDIS_URL and REDIS_URL
 REDIS_URL = os.getenv("MODEL_PLATFORM_REDIS_URL", os.getenv("REDIS_URL", "redis://localhost:6379/2"))

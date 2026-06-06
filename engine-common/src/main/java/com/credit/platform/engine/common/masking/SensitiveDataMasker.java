@@ -3,6 +3,7 @@ package com.credit.platform.engine.common.masking;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -37,8 +38,12 @@ public final class SensitiveDataMasker {
     private static final String MASK_CHAR = "*";
 
     /** 身份证号正则 (18位, 允许最后一位X) */
-    private static final Pattern ID_CARD_PATTERN =
+    private static final Pattern ID_CARD_18_PATTERN =
         Pattern.compile("(?<!\\d)(\\d{3})\\d{11}(\\d{4})(?!\\d)");
+
+    /** 身份证号正则 (15位纯数字) */
+    private static final Pattern ID_CARD_15_PATTERN =
+        Pattern.compile("(?<!\\d)(\\d{3})\\d{9}(\\d{3})(?!\\d)");
 
     /** 手机号正则 (11位, 1开头) */
     private static final Pattern MOBILE_PATTERN =
@@ -53,7 +58,7 @@ public final class SensitiveDataMasker {
         Pattern.compile("(\\w{1})\\w*(@\\w+\\.\\w+)");
 
     /** 已注册的脱敏策略 */
-    private static final Map<SensitiveType, Function<String, String>> MASK_STRATEGIES = new HashMap<>();
+    private static final Map<SensitiveType, Function<String, String>> MASK_STRATEGIES = new ConcurrentHashMap<>();
 
     static {
         MASK_STRATEGIES.put(SensitiveType.ID_CARD, SensitiveDataMasker::maskIdCard);
@@ -116,7 +121,8 @@ public final class SensitiveDataMasker {
     public static String autoMask(String text) {
         if (text == null || text.isEmpty()) return text;
         String result = text;
-        result = ID_CARD_PATTERN.matcher(result).replaceAll("$1***********$2");
+        result = ID_CARD_18_PATTERN.matcher(result).replaceAll("$1***********$2");
+        result = ID_CARD_15_PATTERN.matcher(result).replaceAll("$1*********$2");
         result = BANK_CARD_PATTERN.matcher(result).replaceAll("$1********$2");
         result = MOBILE_PATTERN.matcher(result).replaceAll("$1****$2");
         result = EMAIL_PATTERN.matcher(result).replaceAll("$1***$2");
@@ -217,7 +223,9 @@ public final class SensitiveDataMasker {
      * @param strategy 脱敏函数
      */
     public static void registerStrategy(SensitiveType type, Function<String, String> strategy) {
-        MASK_STRATEGIES.put(type, strategy);
+        Objects.requireNonNull(type, "type must not be null");
+        Objects.requireNonNull(strategy, "strategy must not be null");
+        MASK_STRATEGIES.computeIfAbsent(type, k -> strategy);
     }
 
     // ========== 工具方法 ==========

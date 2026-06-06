@@ -1,6 +1,7 @@
 package com.credit.platform.server.controller;
 
 import java.util.Map;
+import java.util.Set;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -13,6 +14,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.credit.platform.engine.common.model.DecisionResponse;
 import com.credit.platform.server.service.DecisionService;
+
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
 /**
  * 决策引擎 REST API。
@@ -27,6 +32,9 @@ import com.credit.platform.server.service.DecisionService;
 @RestController
 @RequestMapping("/api/v1/decision")
 public class DecisionController {
+
+    /** 合法渠道集合 */
+    private static final Set<String> ALLOWED_CHANNELS = Set.of("APP", "WEB", "API", "PARTNER");
 
     private final DecisionService decisionService;
 
@@ -53,11 +61,18 @@ public class DecisionController {
      */
     @PostMapping("/execute")
     public ResponseEntity<DecisionResponse> execute(
-            @RequestBody DecisionRequestDto request,
+            @Valid @RequestBody DecisionRequestDto request,
             @RequestHeader(value = "X-Request-Id", required = false) String requestId,
             @RequestHeader(value = "X-Channel", required = false) String headerChannel) {
 
         String channel = headerChannel != null ? headerChannel : request.getChannel();
+
+        // 校验渠道合法性
+        if (channel != null && !ALLOWED_CHANNELS.contains(channel.toUpperCase())) {
+            return ResponseEntity.badRequest().body(
+                DecisionResponse.error(null, null,
+                    "Invalid channel: " + channel + ", allowed: " + ALLOWED_CHANNELS, 0L));
+        }
 
         DecisionResponse response = decisionService.execute(
             request.getStrategyId(),
@@ -102,8 +117,10 @@ public class DecisionController {
      * 决策请求 DTO。
      */
     public static class DecisionRequestDto {
+        @NotBlank(message = "strategyId 不能为空")
         private String strategyId;
         private String channel;
+        @NotNull(message = "applicant 不能为 null")
         private Map<String, Object> applicant;
         private Map<String, Object> metadata;
 

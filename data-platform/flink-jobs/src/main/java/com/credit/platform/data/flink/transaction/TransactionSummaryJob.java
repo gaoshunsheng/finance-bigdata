@@ -162,19 +162,20 @@ public class TransactionSummaryJob {
 
         @Override
         public TransactionAccumulator createAccumulator() {
-            return new TransactionAccumulator(0.0, 0L);
+            return new TransactionAccumulator(null, 0.0, 0L);
         }
 
         @Override
         public TransactionAccumulator add(TransactionEvent event, TransactionAccumulator acc) {
-            return new TransactionAccumulator(acc.totalAmount + event.amount, acc.count + 1);
+            String customerId = acc.customerId != null ? acc.customerId : event.customerId;
+            return new TransactionAccumulator(customerId, acc.totalAmount + event.amount, acc.count + 1);
         }
 
         @Override
         public TransactionSummary getResult(TransactionAccumulator acc) {
             double avgAmount = acc.count > 0 ? acc.totalAmount / acc.count : 0.0;
             return new TransactionSummary(
-                    null,
+                    acc.customerId,
                     acc.totalAmount,
                     acc.count,
                     avgAmount,
@@ -185,7 +186,8 @@ public class TransactionSummaryJob {
 
         @Override
         public TransactionAccumulator merge(TransactionAccumulator a, TransactionAccumulator b) {
-            return new TransactionAccumulator(a.totalAmount + b.totalAmount, a.count + b.count);
+            String customerId = a.customerId != null ? a.customerId : b.customerId;
+            return new TransactionAccumulator(customerId, a.totalAmount + b.totalAmount, a.count + b.count);
         }
     }
 
@@ -227,13 +229,15 @@ public class TransactionSummaryJob {
      * 聚合累加器 — 保存窗口内的中间聚合结果。
      */
     public static class TransactionAccumulator {
+        public String customerId;
         public double totalAmount;
         public long count;
 
         public TransactionAccumulator() {
         }
 
-        public TransactionAccumulator(double totalAmount, long count) {
+        public TransactionAccumulator(String customerId, double totalAmount, long count) {
+            this.customerId = customerId;
             this.totalAmount = totalAmount;
             this.count = count;
         }

@@ -5,6 +5,7 @@ import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
+import java.util.Arrays;
 import java.util.Base64;
 
 /**
@@ -41,6 +42,9 @@ public final class FieldEncryptor {
     private static final int TAG_LENGTH = 128;      // 认证标签位数
     private static final int KEY_LENGTH = 32;       // AES-256 密钥长度 (字节)
 
+    // TODO: 密钥轮转支持 — 当前仅支持单一密钥，需增加多密钥版本管理，
+    //       支持新数据用新密钥加密、旧密文用旧密钥解密的平滑轮转机制
+
     private final SecretKeySpec keySpec;
     private final SecureRandom secureRandom;
 
@@ -53,10 +57,12 @@ public final class FieldEncryptor {
     public FieldEncryptor(String base64Key) {
         byte[] keyBytes = Base64.getDecoder().decode(base64Key);
         if (keyBytes.length != KEY_LENGTH) {
+            Arrays.fill(keyBytes, (byte) 0);
             throw new IllegalArgumentException(
                 "AES-256 key must be 32 bytes, got " + keyBytes.length + " bytes");
         }
         this.keySpec = new SecretKeySpec(keyBytes, "AES");
+        Arrays.fill(keyBytes, (byte) 0);
         this.secureRandom = new SecureRandom();
     }
 
@@ -157,17 +163,32 @@ public final class FieldEncryptor {
     }
 
     /**
-     * 检查字符串是否为加密格式 (以 Base64 编码的 IV+ciphertext 开头)。
-     * 简单启发式检查：是否为有效 Base64 且长度合理。
+     * 检查字符串是否为加密格式。
+     * <p>
+     * 验证规则：必须是有效 Base64，解码后长度至少为 IV(12) + GCM认证标签(16) + 最短密文(1) = 29 字节，
+     * 且前 IV_LENGTH 字节作为 IV 不应全部为零（排除普通长字符串的误判）。
+     * </p>
      *
      * @param value 待检查字符串
      * @return true 如果可能是加密数据
      */
     public static boolean isEncrypted(String value) {
         if (value == null || value.isEmpty()) return false;
+        // 加密输出为 Base64，必须只包含 Base64 字符 (允许末尾有 = 填充)
+        if (!value.matches("^[A-Za-z0-9+/]+=*$")) return false;
         try {
             byte[] decoded = Base64.getDecoder().decode(value);
-            return decoded.length > IV_LENGTH + 16;
+            // 最短有效密文 = IV(12) + GCM tag(16) + 至少1字节密文 = 29
+            if (decoded.length <= IV_LENGTH + TAG_LENGTH / 8) return false;
+            // 检查前 IV_LENGTH 字节不全为零（真实 IV 由 SecureRandom 生成，几乎不可能全零）
+            boolean ivAllZero = true;
+            for (int i = 0; i < IV_LENGTH; i++) {
+                if (decoded[i] != 0) {
+                    ivAllZero = false;
+                    break;
+                }
+            }
+            return !ivAllZero;
         } catch (IllegalArgumentException e) {
             return false;
         }

@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -254,14 +255,18 @@ public class RuleCompiler {
             RuleAction.Builder builder = RuleAction.builder()
                 .type(type).reason(reason).code(code);
 
-            // 提取额外参数
+            // 提取额外参数（累积到同一个 Map，避免覆盖）
+            Map<String, Object> params = new LinkedHashMap<>();
             Iterator<Map.Entry<String, JsonNode>> fields = actionNode.fields();
             while (fields.hasNext()) {
                 Map.Entry<String, JsonNode> entry = fields.next();
                 String key = entry.getKey();
                 if (!key.equals("type") && !key.equals("reason") && !key.equals("code")) {
-                    builder.params(Map.of(key, extractScalar(entry.getValue())));
+                    params.put(key, extractScalar(entry.getValue()));
                 }
+            }
+            if (!params.isEmpty()) {
+                builder.params(params);
             }
 
             actions.add(builder.build());

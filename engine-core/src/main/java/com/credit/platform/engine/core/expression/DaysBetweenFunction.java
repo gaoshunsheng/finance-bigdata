@@ -33,6 +33,9 @@ public class DaysBetweenFunction extends AbstractVariadicFunction {
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
+    /** 统一时区，确保分布式部署结果一致 */
+    private static final ZoneId ZONE_SHANGHAI = ZoneId.of("Asia/Shanghai");
+
     /**
      * 函数名称。
      *
@@ -82,7 +85,7 @@ public class DaysBetweenFunction extends AbstractVariadicFunction {
         }
         if (value instanceof Date) {
             return ((Date) value).toInstant()
-                .atZone(ZoneId.systemDefault())
+                .atZone(ZONE_SHANGHAI)
                 .toLocalDate();
         }
         if (value instanceof String) {

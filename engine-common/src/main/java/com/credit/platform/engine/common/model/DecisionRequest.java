@@ -1,6 +1,9 @@
 package com.credit.platform.engine.common.model;
 
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * 决策请求。
@@ -44,8 +47,8 @@ public class DecisionRequest {
                            String requestId) {
         this.strategyId = strategyId;
         this.channel = channel;
-        this.applicant = applicant;
-        this.metadata = metadata;
+        this.applicant = applicant != null ? new HashMap<>(applicant) : null;
+        this.metadata = metadata != null ? new HashMap<>(metadata) : null;
         this.requestId = requestId;
     }
 
@@ -66,19 +69,19 @@ public class DecisionRequest {
     }
 
     public Map<String, Object> getApplicant() {
-        return applicant;
+        return applicant != null ? Collections.unmodifiableMap(applicant) : null;
     }
 
     public void setApplicant(Map<String, Object> applicant) {
-        this.applicant = applicant;
+        this.applicant = applicant != null ? new HashMap<>(applicant) : null;
     }
 
     public Map<String, Object> getMetadata() {
-        return metadata;
+        return metadata != null ? Collections.unmodifiableMap(metadata) : null;
     }
 
     public void setMetadata(Map<String, Object> metadata) {
-        this.metadata = metadata;
+        this.metadata = metadata != null ? new HashMap<>(metadata) : null;
     }
 
     public String getRequestId() {

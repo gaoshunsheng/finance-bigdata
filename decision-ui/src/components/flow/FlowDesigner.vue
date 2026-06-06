@@ -297,11 +297,46 @@ function onMouseMove(e: MouseEvent) {
   node.position.y = dragging.offsetY + (e.clientY - dragging.startY)
 }
 
-function onMouseUp() {
+function onMouseUp(e: MouseEvent) {
   dragging = null
   if (drawingEdge.value) {
+    // 检查鼠标是否在某个节点上，以完成连线
+    const targetNode = findNodeAtPoint(e)
+    if (targetNode && targetNode.id !== drawingEdge.value.fromNodeId) {
+      // 不允许重复连线
+      const exists = edges.some(
+        ed => ed.source === drawingEdge.value!.fromNodeId && ed.target === targetNode.id,
+      )
+      if (!exists) {
+        edges.push({
+          id: nextId('edge'),
+          source: drawingEdge.value.fromNodeId,
+          target: targetNode.id,
+        })
+      }
+    }
     drawingEdge.value = null
   }
+}
+
+/** 判断鼠标坐标落在哪个节点上 */
+function findNodeAtPoint(e: MouseEvent): FlowNode | null {
+  if (!canvasRef.value) return null
+  const rect = canvasRef.value.getBoundingClientRect()
+  const mx = e.clientX - rect.left
+  const my = e.clientY - rect.top
+  for (let i = nodes.length - 1; i >= 0; i--) {
+    const n = nodes[i]
+    if (
+      mx >= n.position.x &&
+      mx <= n.position.x + nodeWidth &&
+      my >= n.position.y &&
+      my <= n.position.y + nodeHeight
+    ) {
+      return n
+    }
+  }
+  return null
 }
 
 // --- 连线绘制 ---

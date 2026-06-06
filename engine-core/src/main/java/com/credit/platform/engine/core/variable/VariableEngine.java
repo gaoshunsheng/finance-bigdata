@@ -1,8 +1,10 @@
 package com.credit.platform.engine.core.variable;
 
 import com.credit.platform.engine.core.expression.ExpressionEngine;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -104,10 +106,20 @@ public class VariableEngine {
         }
     }
 
+    /**
+     * 解析衍生变量 — 按依赖拓扑顺序计算。
+     * <p>
+     * 衍生变量之间存在依赖关系（如 var_a 依赖 var_b），
+     * 必须按依赖顺序计算，否则表达式引用的变量值可能尚未就绪。
+     * </p>
+     */
     private void resolveDerived(Set<String> varIds, VariableResolveContext ctx) {
         if (varIds.isEmpty() || expressionEngine == null) return;
 
-        for (String varId : varIds) {
+        // 拓扑排序：确保被依赖的变量先计算
+        List<String> sorted = topologicalSort(varIds);
+
+        for (String varId : sorted) {
             if (ctx.isResolved(varId)) continue;
 
             VariableDefinition def = registry.get(varId);
@@ -121,6 +133,63 @@ public class VariableEngine {
                 }
             }
         }
+    }
+
+    /**
+     * 对衍生变量按依赖关系进行拓扑排序（Kahn 算法）。
+     * 被依赖的变量排在前面，确保计算时其依赖值已就绪。
+     */
+    private List<String> topologicalSort(Set<String> varIds) {
+        // 构建 DAG：仅考虑 varIds 集合内的依赖关系
+        Map<String, Set<String>> deps = new HashMap<>();
+        Map<String, Integer> inDegree = new HashMap<>();
+        for (String varId : varIds) {
+            deps.put(varId, new HashSet<>());
+            inDegree.put(varId, 0);
+        }
+        for (String varId : varIds) {
+            VariableDefinition def = registry.get(varId);
+            if (def != null && def.getDependencies() != null) {
+                for (String dep : def.getDependencies()) {
+                    if (varIds.contains(dep)) {
+                        // dep → varId（dep 必须先于 varId 计算）
+                        deps.get(dep).add(varId);
+                        inDegree.merge(varId, 1, Integer::sum);
+                    }
+                }
+            }
+        }
+
+        // Kahn 算法
+        java.util.ArrayDeque<String> queue = new java.util.ArrayDeque<>();
+        for (Map.Entry<String, Integer> e : inDegree.entrySet()) {
+            if (e.getValue() == 0) {
+                queue.add(e.getKey());
+            }
+        }
+
+        List<String> result = new ArrayList<>();
+        while (!queue.isEmpty()) {
+            String current = queue.poll();
+            result.add(current);
+            for (String dependent : deps.get(current)) {
+                int newDegree = inDegree.merge(dependent, -1, Integer::sum);
+                if (newDegree == 0) {
+                    queue.add(dependent);
+                }
+            }
+        }
+
+        // 如果存在循环依赖，result 可能不完整；
+        // 将剩余变量追加到末尾（降级为原始顺序）
+        if (result.size() < varIds.size()) {
+            for (String varId : varIds) {
+                if (!result.contains(varId)) {
+                    result.add(varId);
+                }
+            }
+        }
+        return result;
     }
 
     /**

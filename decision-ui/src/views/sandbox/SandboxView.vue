@@ -149,6 +149,10 @@ async function execute() {
   }
   executing.value = true
   try {
+    // TODO: [P1] 当前使用 mock 数据，需要替换为真实 API 调用
+    // import { post } from '@/api/request'
+    // const res = await post<SandboxResult>('/sandbox/execute', { targetId, targetType, version, inputData })
+    // result.value = res
     // 模拟执行 (后续连接后端API)
     await new Promise(r => setTimeout(r, 800))
     result.value = {

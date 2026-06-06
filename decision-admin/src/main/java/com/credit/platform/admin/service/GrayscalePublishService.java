@@ -6,6 +6,7 @@ import java.util.Objects;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.credit.platform.admin.mapper.GrayscaleConfigMapper;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.credit.platform.admin.model.GrayscaleConfig;
 import com.credit.platform.admin.model.GrayscaleConfig.GrayscaleStatus;
@@ -37,6 +38,7 @@ public class GrayscalePublishService {
     /**
      * 开始灰度发布 — 将 APPROVED 状态的规则启动灰度。
      */
+    @Transactional
     public GrayscaleConfig startGrayscale(String type, String id, int initialPercentage, String operator) {
         RuleEntity entity = ruleRepository.findLatest(type, id)
             .orElseThrow(() -> new IllegalArgumentException(type + " not found: " + id));

@@ -29,15 +29,15 @@ public final class FeatureKey {
     }
 
     /**
-     * 生成 HBase RowKey — 反转客户 ID 保证均衡分布。
+     * 生成 HBase RowKey — 反转客户 ID 保证均衡分布，使用确定性标识符保证幂等。
      *
      * @param customerId  客户 ID
      * @param featureType 特征类型
-     * @param timestamp   时间戳
+     * @param windowId    窗口标识符（如 windowEnd 时间戳字符串），用于保证幂等
      * @return HBase RowKey
      */
-    public static String hbaseRowKey(String customerId, String featureType, long timestamp) {
-        return reverse(customerId) + "_" + featureType + "_" + timestamp;
+    public static String hbaseRowKey(String customerId, String featureType, String windowId) {
+        return reverse(customerId) + "_" + featureType + "_" + windowId;
     }
 
     /**

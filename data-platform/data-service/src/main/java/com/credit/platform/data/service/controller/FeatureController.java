@@ -3,7 +3,9 @@ package com.credit.platform.data.service.controller;
 import com.credit.platform.data.service.model.ApiResponse;
 import com.credit.platform.data.service.model.CustomerFeatures;
 import com.credit.platform.data.service.service.FeatureQueryService;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -17,6 +19,8 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/features")
 public class FeatureController {
+
+    private static final int MAX_FEATURE_KEYS = 100;
 
     private final FeatureQueryService featureQueryService;
 
@@ -48,6 +52,10 @@ public class FeatureController {
             @PathVariable String customerId,
             @RequestParam("keys") String featureKeys) {
         List<String> keys = List.of(featureKeys.split(","));
+        if (keys.size() > MAX_FEATURE_KEYS) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "特征 Key 数量超过上限 " + MAX_FEATURE_KEYS + "，当前: " + keys.size());
+        }
         CustomerFeatures features = featureQueryService.queryFeatures(customerId, keys);
         return ApiResponse.ok(features, "特征查询成功");
     }

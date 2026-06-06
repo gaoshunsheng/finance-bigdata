@@ -31,6 +31,9 @@ public class DecisionLogDocument {
     @JsonProperty("riskLevel")
     private String riskLevel;
 
+    @JsonProperty("rejectReason")
+    private String rejectReason;
+
     @JsonProperty("rulesExecuted")
     private List<String> rulesExecuted;
 
@@ -70,6 +73,9 @@ public class DecisionLogDocument {
 
     public String getRiskLevel() { return riskLevel; }
     public void setRiskLevel(String riskLevel) { this.riskLevel = riskLevel; }
+
+    public String getRejectReason() { return rejectReason; }
+    public void setRejectReason(String rejectReason) { this.rejectReason = rejectReason; }
 
     public List<String> getRulesExecuted() { return rulesExecuted; }
     public void setRulesExecuted(List<String> rulesExecuted) { this.rulesExecuted = rulesExecuted; }

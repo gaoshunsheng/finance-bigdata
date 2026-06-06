@@ -13,10 +13,14 @@ const request: AxiosInstance = axios.create({
 
 // --- 刷新 Token 相关 ---
 let isRefreshing = false
-let pendingRequests: Array<(token: string) => void> = []
+type PendingRequest = { config: InternalAxiosRequestConfig; resolve: (value: unknown) => void }
+let pendingRequests: PendingRequest[] = []
 
 function onTokenRefreshed(newToken: string) {
-  pendingRequests.forEach((cb) => cb(newToken))
+  pendingRequests.forEach(({ config, resolve }) => {
+    config.headers.Authorization = `Bearer ${newToken}`
+    resolve(request(config))
+  })
   pendingRequests = []
 }
 
@@ -63,11 +67,10 @@ request.interceptors.response.use(
       }
 
       if (isRefreshing) {
+        // Store a snapshot of the original config so the replay uses fresh state after token refresh
+        const configSnapshot = { ...config, headers: { ...config.headers } }
         return new Promise((resolve) => {
-          pendingRequests.push((newToken: string) => {
-            config.headers.Authorization = `Bearer ${newToken}`
-            resolve(request(config))
-          })
+          pendingRequests.push({ config: configSnapshot, resolve })
         })
       }
 

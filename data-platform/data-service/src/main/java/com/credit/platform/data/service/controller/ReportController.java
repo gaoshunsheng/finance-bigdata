@@ -2,8 +2,12 @@ package com.credit.platform.data.service.controller;
 
 import com.credit.platform.data.service.model.ApiResponse;
 import com.credit.platform.data.service.service.ReportService;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.Map;
 
 /**
@@ -20,6 +24,8 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/v1/reports")
 public class ReportController {
+
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     private final ReportService reportService;
 
@@ -38,6 +44,14 @@ public class ReportController {
     public ApiResponse queryReport(
             @PathVariable String type,
             @RequestParam(value = "date", required = false) String date) {
+        if (date != null && !date.isEmpty()) {
+            try {
+                DATE_FORMATTER.parse(date);
+            } catch (DateTimeParseException e) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "日期格式无效，要求 yyyy-MM-dd: " + date);
+            }
+        }
         Map<String, Object> report = reportService.queryReport(type, date);
         return ApiResponse.ok(report, "报表查询成功");
     }

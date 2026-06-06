@@ -3,6 +3,20 @@ import NProgress from 'nprogress'
 import 'nprogress/nprogress.css'
 import { getAccessToken } from '@/utils/token'
 
+/** 解码 JWT payload 并检查 exp 是否已过期 */
+function isTokenExpired(token: string): boolean {
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return true
+    const payload = JSON.parse(atob(parts[1]))
+    if (typeof payload.exp !== 'number') return true
+    // exp 是秒级时间戳，留 30s 缓冲
+    return payload.exp * 1000 < Date.now() + 30_000
+  } catch {
+    return true
+  }
+}
+
 NProgress.configure({ showSpinner: false })
 
 const routes: RouteRecordRaw[] = [
@@ -157,7 +171,9 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/:pathMatch(.*)*',
-    redirect: '/dashboard',
+    name: 'NotFound',
+    component: () => import('@/views/NotFoundView.vue'),
+    meta: { requiresAuth: false, title: '页面不存在' },
   },
 ]
 
@@ -181,7 +197,8 @@ router.beforeEach((to, _from, next) => {
   }
 
   // 需要认证
-  if (!getAccessToken()) {
+  const token = getAccessToken()
+  if (!token || isTokenExpired(token)) {
     next({ path: '/login', query: { redirect: to.fullPath } })
     return
   }

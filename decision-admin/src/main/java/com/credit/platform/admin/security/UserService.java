@@ -134,10 +134,36 @@ public class UserService {
 
     /**
      * 初始化默认管理员。
+     * <p>
+     * 默认密码从环境变量 ADMIN_INITIAL_PASSWORD 读取，
+     * 未配置时自动生成随机密码并输出到日志（仅一次）。
+     * </p>
      */
     public void initDefaultAdmin() {
         if (!userRepository.existsByUsername("admin")) {
-            createUser("admin", "admin123", "系统管理员", "admin@credit.platform", Role.ADMIN);
+            String initialPassword = System.getenv("ADMIN_INITIAL_PASSWORD");
+            if (initialPassword == null || initialPassword.isEmpty()) {
+                // 自动生成随机密码
+                String generated = generateRandomPassword(16);
+                System.getLogger(UserService.class.getName())
+                    .log(System.Logger.Level.WARNING,
+                        "未配置 ADMIN_INITIAL_PASSWORD，已为 admin 用户生成随机密码，请查阅应用日志获取");
+                System.getLogger(UserService.class.getName())
+                    .log(System.Logger.Level.INFO,
+                        "admin 初始密码: " + generated + " (请立即修改)");
+                initialPassword = generated;
+            }
+            createUser("admin", initialPassword, "系统管理员", "admin@credit.platform", Role.ADMIN);
         }
+    }
+
+    private String generateRandomPassword(int length) {
+        String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%";
+        java.security.SecureRandom random = new java.security.SecureRandom();
+        StringBuilder sb = new StringBuilder(length);
+        for (int i = 0; i < length; i++) {
+            sb.append(chars.charAt(random.nextInt(chars.length())));
+        }
+        return sb.toString();
     }
 }

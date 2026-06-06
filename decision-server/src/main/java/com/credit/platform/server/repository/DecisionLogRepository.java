@@ -3,6 +3,7 @@ package com.credit.platform.server.repository;
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.SortOrder;
 import co.elastic.clients.elasticsearch._types.query_dsl.Query;
+import co.elastic.clients.elasticsearch.core.GetResponse;
 import co.elastic.clients.elasticsearch.core.IndexRequest;
 import co.elastic.clients.elasticsearch.core.SearchRequest;
 import co.elastic.clients.elasticsearch.core.SearchResponse;
@@ -19,6 +20,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Optional;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -59,6 +61,30 @@ public class DecisionLogRepository {
         } catch (IOException e) {
             log.error("Failed to save decision log to ES: {}", e.getMessage(), e);
         }
+    }
+
+    /**
+     * 按文档 ID 查询决策日志。
+     * <p>搜索最近 12 个月的索引以定位文档。</p>
+     *
+     * @param decisionId 决策 ID（ES 文档 ID）
+     * @return 决策日志，不存在时返回 empty
+     */
+    public Optional<DecisionLogDocument> findById(String decisionId) {
+        String[] indices = buildRecentIndices(12);
+        for (String index : indices) {
+            try {
+                GetResponse<DecisionLogDocument> response = esClient.get(g -> g
+                        .index(index)
+                        .id(decisionId), DecisionLogDocument.class);
+                if (response.found() && response.source() != null) {
+                    return Optional.of(response.source());
+                }
+            } catch (IOException e) {
+                // 索引可能不存在，继续搜索下一个
+            }
+        }
+        return Optional.empty();
     }
 
     /**

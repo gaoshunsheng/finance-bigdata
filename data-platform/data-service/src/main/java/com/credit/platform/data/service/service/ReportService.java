@@ -439,10 +439,16 @@ public class ReportService {
 
     // ========== 工具方法 ==========
 
-    /** 解析日期参数，null 时返回当天 */
+    /** 解析日期参数，null 时返回当天。验证格式防止 SQL 注入 */
     private String resolveDate(String date) {
         if (date != null && !date.isEmpty()) {
-            return date;
+            // 安全修复: 验证日期格式为 yyyy-MM-dd，防止 SQL 注入
+            try {
+                LocalDate.parse(date, DATE_FMT);
+                return date;
+            } catch (Exception e) {
+                log.warn("非法日期参数: {}, 使用当天日期", date);
+            }
         }
         return LocalDate.now().format(DATE_FMT);
     }

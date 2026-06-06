@@ -67,7 +67,7 @@
             :pagination="false"
             size="small"
             bordered
-            row-key="_idx"
+            :row-key="(_: any, index: number) => String(index)"
           >
             <template #bodyCell="{ column, record, index }">
               <template v-if="column.key === 'label'">
@@ -130,7 +130,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons-vue'
 import type { Characteristic, Bin, ScorecardModel } from '@/types/scorecard'
 
@@ -183,7 +183,6 @@ function removeBin(char: Characteristic, idx: number) {
 
 /** 实时评分计算 */
 function calcPreview() {
-  let total = model.initialScore
   for (const char of model.characteristics) {
     const val = previewValues[char.field]
     if (val === undefined || val === null) {
@@ -195,16 +194,18 @@ function calcPreview() {
       const toOk = b.to === undefined || b.to === null || val < b.to
       return fromOk && toOk
     })
-    const score = matchedBin?.score || 0
-    previewBinScore[char.field] = score
-    total += score
+    previewBinScore[char.field] = matchedBin?.score || 0
   }
-  // Store total in a way that's accessible
-  previewBinScore.__total = total
 }
 
-const previewTotal = ref(0)
-watch(() => previewBinScore.__total, (v) => { previewTotal.value = v || model.initialScore })
+/** 使用 computed 计算实时总分 */
+const previewTotal = computed(() => {
+  let total = model.initialScore
+  for (const char of model.characteristics) {
+    total += previewBinScore[char.field] || 0
+  }
+  return total
+})
 </script>
 
 <style scoped>

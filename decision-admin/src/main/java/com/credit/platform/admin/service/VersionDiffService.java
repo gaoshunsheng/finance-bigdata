@@ -183,10 +183,10 @@ public class VersionDiffService {
                 }
                 if (i >= json.length()) break;
 
-                // 读取 key
+                // 读取 key（处理转义引号）
                 if (json.charAt(i) != '"') break;
-                int keyEnd = json.indexOf('"', i + 1);
-                if (keyEnd < 0) break;
+                int keyEnd = findStringEnd(json, i + 1);
+                if (keyEnd <= i + 1) break;
                 String key = json.substring(i + 1, keyEnd);
                 i = keyEnd + 1;
 

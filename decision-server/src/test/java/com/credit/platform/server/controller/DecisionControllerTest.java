@@ -63,7 +63,7 @@ class DecisionControllerTest {
         );
 
         mockMvc.perform(post("/api/v1/decision/execute")
-                .header("Authorization", "Bearer dev-test")
+                .header("Authorization", "Bearer test-secret")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isOk())
@@ -90,7 +90,7 @@ class DecisionControllerTest {
     @DisplayName("4. 查询报告 — 不存在的 ID 返回 404")
     void getReport_notFound_returns404() throws Exception {
         mockMvc.perform(get("/api/v1/decision/report/non-existent")
-                .header("Authorization", "Bearer dev-test"))
+                .header("Authorization", "Bearer test-secret"))
             .andExpect(status().isNotFound());
     }
 
