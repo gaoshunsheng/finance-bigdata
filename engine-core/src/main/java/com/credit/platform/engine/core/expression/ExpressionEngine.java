@@ -50,6 +50,9 @@ public class ExpressionEngine {
                     AviatorEvaluator.addFunction(new BetweenFunction());
                     AviatorEvaluator.addFunction(new InFunction());
                     AviatorEvaluator.addFunction(new DaysBetweenFunction());
+                    AviatorEvaluator.addFunction(new IsInProvinceFunction());
+                    AviatorEvaluator.addFunction(new OverdueCountFunction());
+                    AviatorEvaluator.addFunction(new CreditQueryCountFunction());
                     functionsRegistered = true;
                 }
             }

@@ -48,6 +48,38 @@ decision:
       enabled: true
       secret-key: "change-me-in-production"
       token-expire-hours: 24
+    # 外部 API 适配器配置
+    external-api:
+      enabled: true
+      mock-mode: true
+      timeout-ms: 3000
+      retry-count: 1
+      cache-ttl-ms: 3600000
+      adapters:
+        credit-bureau:
+          enabled: true
+          mock-mode: true
+          url: ${CREDIT_BUREAU_URL:http://localhost:9090}
+        business-registration:
+          enabled: true
+          mock-mode: true
+          url: ${BUSINESS_REG_URL:http://localhost:9091}
+        judicial:
+          enabled: true
+          mock-mode: true
+          url: ${JUDICIAL_URL:http://localhost:9092}
+        telecom:
+          enabled: true
+          mock-mode: true
+          url: ${TELECOM_URL:http://localhost:9093}
+        tax-social:
+          enabled: true
+          mock-mode: true
+          url: ${TAX_SOCIAL_URL:http://localhost:9094}
+        blacklist:
+          enabled: true
+          mock-mode: true
+          url: ${BLACKLIST_URL:http://localhost:9095}
 
 elasticsearch:
   host: ${ES_HOST:localhost}
