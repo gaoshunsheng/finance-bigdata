@@ -2,10 +2,11 @@ package com.credit.platform.admin.service;
 
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.credit.platform.admin.mapper.ApprovalRecordMapper;
 import com.credit.platform.admin.model.ApprovalRecord;
@@ -26,7 +27,6 @@ public class ApprovalService {
 
     private final RuleRepository ruleRepository;
     private final ApprovalRecordMapper approvalRecordMapper;
-    private final AtomicLong idSequence = new AtomicLong(0);
 
     public ApprovalService(RuleRepository ruleRepository, ApprovalRecordMapper approvalRecordMapper) {
         this.ruleRepository = Objects.requireNonNull(ruleRepository);
@@ -36,6 +36,7 @@ public class ApprovalService {
     /**
      * 提交审批 — 将规则状态从 TESTING 推进到 PENDING_REVIEW，记录审批提交记录。
      */
+    @Transactional
     public RuleEntity submitForApproval(String type, String id, String submitter, String comment) {
         RuleEntity entity = ruleRepository.findLatest(type, id)
             .orElseThrow(() -> new IllegalArgumentException(type + " not found: " + id));
@@ -164,6 +165,6 @@ public class ApprovalService {
     }
 
     private String generateRecordId() {
-        return "apr-" + System.currentTimeMillis() + "-" + idSequence.incrementAndGet();
+        return "apr-" + UUID.randomUUID().toString().substring(0, 8);
     }
 }

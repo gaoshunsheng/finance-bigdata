@@ -1,4 +1,7 @@
 """模型训练 API"""
+import asyncio
+from concurrent.futures import ProcessPoolExecutor
+
 from fastapi import APIRouter, HTTPException
 
 from app.schemas import ApiResponse, TrainingRequest, TrainingResult
@@ -6,12 +9,18 @@ from app.core.training.trainer import model_trainer
 
 router = APIRouter()
 
+# Process pool for CPU-bound training tasks to avoid blocking the async event loop
+_process_pool = ProcessPoolExecutor(max_workers=2)
+
 
 @router.post("/train", summary="发起模型训练")
 async def train_model(request: TrainingRequest):
     """发起模型训练任务"""
+    loop = asyncio.get_event_loop()
     try:
-        result = model_trainer.train(request.model_dump())
+        result = await loop.run_in_executor(
+            _process_pool, model_trainer.train, request.model_dump()
+        )
         return ApiResponse(data=result)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

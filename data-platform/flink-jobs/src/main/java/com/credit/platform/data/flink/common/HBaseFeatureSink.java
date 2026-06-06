@@ -74,9 +74,11 @@ public class HBaseFeatureSink extends RichSinkFunction<Map<String, Object>> {
             if (customerId == null || customerId.isEmpty()) {
                 return;
             }
-            long timestamp = System.currentTimeMillis();
-            String rowKey = FeatureKey.hbaseRowKey(customerId, featureType, timestamp);
+            // Use deterministic RowKey from customerId + featureType + windowEnd for idempotency
+            String windowEnd = value.getOrDefault("windowEnd", "").toString();
+            String rowKey = FeatureKey.hbaseRowKey(customerId, featureType, windowEnd);
             String json = objectMapper.writeValueAsString(value);
+            long timestamp = System.currentTimeMillis();
 
             Table table = hbaseConnection.getTable(TableName.valueOf("customer_feature"));
             Put put = new Put(Bytes.toBytes(rowKey));

@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
@@ -64,10 +65,15 @@ public class User {
 
     /**
      * 检查用户是否拥有指定角色或更高角色。
+     * 使用 name 比较而非 ordinal，避免 enum 重排序导致的安全问题。
      */
+    private static final List<String> ROLE_HIERARCHY = List.of("VIEWER", "EDITOR", "APPROVER", "ADMIN");
+
     public boolean hasRoleOrAbove(Role requiredRole) {
         if (role == null) return false;
-        return role.ordinal() >= requiredRole.ordinal();
+        int userLevel = ROLE_HIERARCHY.indexOf(role.name());
+        int requiredLevel = ROLE_HIERARCHY.indexOf(requiredRole.name());
+        return userLevel >= 0 && requiredLevel >= 0 && userLevel >= requiredLevel;
     }
 
     // ========== Getters & Setters ==========

@@ -1,7 +1,7 @@
 package com.credit.platform.admin.service;
 
 import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.UUID;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.credit.platform.admin.mapper.RuleMapper;
@@ -20,7 +20,6 @@ import org.springframework.stereotype.Repository;
 public class RuleRepository {
 
     private final RuleMapper ruleMapper;
-    private final AtomicInteger idCounter = new AtomicInteger(0);
 
     public RuleRepository(RuleMapper ruleMapper) {
         this.ruleMapper = ruleMapper;
@@ -30,7 +29,7 @@ public class RuleRepository {
      * 生成唯一 ID。
      */
     public String nextId(String type) {
-        return type.toLowerCase() + "-" + System.currentTimeMillis() + "-" + idCounter.incrementAndGet();
+        return type.toLowerCase() + "-" + UUID.randomUUID().toString().substring(0, 8);
     }
 
     /**

@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import com.credit.platform.admin.model.ApiResponse;
@@ -34,9 +36,8 @@ public class PublishController {
     @PostMapping("/{type}/{id}/promote-to-testing")
     public ResponseEntity<ApiResponse<Map<String, Object>>> promoteToTesting(
             @PathVariable("type") String type,
-            @PathVariable("id") String id,
-            @RequestBody OperatorRequest request) {
-        RuleEntity entity = publishService.promoteToTesting(type, id, request.operator());
+            @PathVariable("id") String id) {
+        RuleEntity entity = publishService.promoteToTesting(type, id, getCurrentUser());
         return ResponseEntity.ok(ApiResponse.success(entity.toSummary()));
     }
 
@@ -48,7 +49,7 @@ public class PublishController {
             @PathVariable("type") String type,
             @PathVariable("id") String id,
             @RequestBody ApprovalRequest request) {
-        RuleEntity entity = publishService.submitForApproval(type, id, request.operator(), request.comment());
+        RuleEntity entity = publishService.submitForApproval(type, id, getCurrentUser(), request.comment());
         return ResponseEntity.ok(ApiResponse.success(entity.toSummary()));
     }
 
@@ -58,7 +59,7 @@ public class PublishController {
             @PathVariable("type") String type,
             @PathVariable("id") String id,
             @RequestBody ApprovalRequest request) {
-        RuleEntity entity = publishService.approve(type, id, request.operator(), request.comment());
+        RuleEntity entity = publishService.approve(type, id, getCurrentUser(), request.comment());
         return ResponseEntity.ok(ApiResponse.success(entity.toSummary()));
     }
 
@@ -68,7 +69,7 @@ public class PublishController {
             @PathVariable("type") String type,
             @PathVariable("id") String id,
             @RequestBody RejectRequest request) {
-        RuleEntity entity = publishService.reject(type, id, request.operator(), request.reason());
+        RuleEntity entity = publishService.reject(type, id, getCurrentUser(), request.reason());
         return ResponseEntity.ok(ApiResponse.success(entity.toSummary()));
     }
 
@@ -78,7 +79,7 @@ public class PublishController {
             @PathVariable("type") String type,
             @PathVariable("id") String id,
             @RequestBody ApprovalRequest request) {
-        RuleEntity entity = publishService.withdrawApproval(type, id, request.operator(), request.comment());
+        RuleEntity entity = publishService.withdrawApproval(type, id, getCurrentUser(), request.comment());
         return ResponseEntity.ok(ApiResponse.success(entity.toSummary()));
     }
 
@@ -107,7 +108,7 @@ public class PublishController {
             @PathVariable("id") String id,
             @RequestBody GrayscaleStartRequest request) {
         GrayscaleConfig config = publishService.startGrayscale(
-            type, id, request.percentage(), request.operator());
+            type, id, request.percentage(), getCurrentUser());
         return ResponseEntity.ok(ApiResponse.success(config));
     }
 
@@ -115,9 +116,8 @@ public class PublishController {
     @PostMapping("/{type}/{id}/grayscale/ramp-up")
     public ResponseEntity<ApiResponse<GrayscaleConfig>> rampUpGrayscale(
             @PathVariable("type") String type,
-            @PathVariable("id") String id,
-            @RequestBody OperatorRequest request) {
-        GrayscaleConfig config = publishService.rampUpGrayscale(type, id, request.operator());
+            @PathVariable("id") String id) {
+        GrayscaleConfig config = publishService.rampUpGrayscale(type, id, getCurrentUser());
         return ResponseEntity.ok(ApiResponse.success(config));
     }
 
@@ -128,7 +128,7 @@ public class PublishController {
             @PathVariable("id") String id,
             @RequestBody GrayscaleAdjustRequest request) {
         GrayscaleConfig config = publishService.adjustGrayscale(
-            type, id, request.percentage(), request.operator());
+            type, id, request.percentage(), getCurrentUser());
         return ResponseEntity.ok(ApiResponse.success(config));
     }
 
@@ -136,9 +136,8 @@ public class PublishController {
     @PostMapping("/{type}/{id}/grayscale/pause")
     public ResponseEntity<ApiResponse<GrayscaleConfig>> pauseGrayscale(
             @PathVariable("type") String type,
-            @PathVariable("id") String id,
-            @RequestBody OperatorRequest request) {
-        GrayscaleConfig config = publishService.pauseGrayscale(type, id, request.operator());
+            @PathVariable("id") String id) {
+        GrayscaleConfig config = publishService.pauseGrayscale(type, id, getCurrentUser());
         return ResponseEntity.ok(ApiResponse.success(config));
     }
 
@@ -146,9 +145,8 @@ public class PublishController {
     @PostMapping("/{type}/{id}/grayscale/resume")
     public ResponseEntity<ApiResponse<GrayscaleConfig>> resumeGrayscale(
             @PathVariable("type") String type,
-            @PathVariable("id") String id,
-            @RequestBody OperatorRequest request) {
-        GrayscaleConfig config = publishService.resumeGrayscale(type, id, request.operator());
+            @PathVariable("id") String id) {
+        GrayscaleConfig config = publishService.resumeGrayscale(type, id, getCurrentUser());
         return ResponseEntity.ok(ApiResponse.success(config));
     }
 
@@ -168,9 +166,8 @@ public class PublishController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> rollback(
             @PathVariable("type") String type,
             @PathVariable("id") String id,
-            @PathVariable("version") int version,
-            @RequestBody OperatorRequest request) {
-        RuleEntity entity = publishService.rollback(type, id, version, request.operator());
+            @PathVariable("version") int version) {
+        RuleEntity entity = publishService.rollback(type, id, version, getCurrentUser());
         return ResponseEntity.ok(ApiResponse.success(entity.toSummary()));
     }
 
@@ -178,9 +175,8 @@ public class PublishController {
     @PostMapping("/{type}/{id}/grayscale/rollback")
     public ResponseEntity<ApiResponse<Map<String, Object>>> rollbackGrayscale(
             @PathVariable("type") String type,
-            @PathVariable("id") String id,
-            @RequestBody OperatorRequest request) {
-        RuleEntity entity = publishService.rollbackGrayscale(type, id, request.operator());
+            @PathVariable("id") String id) {
+        RuleEntity entity = publishService.rollbackGrayscale(type, id, getCurrentUser());
         return ResponseEntity.ok(ApiResponse.success(entity.toSummary()));
     }
 
@@ -224,21 +220,31 @@ public class PublishController {
     @PostMapping("/{type}/{id}/promote")
     public ResponseEntity<ApiResponse<Map<String, Object>>> promote(
             @PathVariable("type") String type,
-            @PathVariable("id") String id,
-            @RequestBody OperatorRequest request) {
-        RuleEntity entity = publishService.promoteToTesting(type, id, request.operator());
+            @PathVariable("id") String id) {
+        RuleEntity entity = publishService.promoteToTesting(type, id, getCurrentUser());
         return ResponseEntity.ok(ApiResponse.success(entity.toSummary()));
+    }
+
+    // ==================== Helpers ====================
+
+    /**
+     * 从 SecurityContext 获取当前认证用户名，确保操作者身份与认证用户一致。
+     */
+    private String getCurrentUser() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || auth.getName() == null) {
+            throw new IllegalStateException("No authenticated user found");
+        }
+        return auth.getName();
     }
 
     // ==================== Request DTOs ====================
 
-    public record OperatorRequest(String operator) {}
+    public record ApprovalRequest(String comment) {}
 
-    public record ApprovalRequest(String operator, String comment) {}
+    public record RejectRequest(String reason) {}
 
-    public record RejectRequest(String operator, String reason) {}
+    public record GrayscaleStartRequest(int percentage) {}
 
-    public record GrayscaleStartRequest(String operator, int percentage) {}
-
-    public record GrayscaleAdjustRequest(String operator, int percentage) {}
+    public record GrayscaleAdjustRequest(int percentage) {}
 }

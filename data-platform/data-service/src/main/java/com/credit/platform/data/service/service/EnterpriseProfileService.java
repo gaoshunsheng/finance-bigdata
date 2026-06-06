@@ -77,16 +77,20 @@ public class EnterpriseProfileService {
         profile.put("creditSummary", queryCreditSummary(enterpriseId));
 
         // 关联人员
+        // TODO: [PLACEHOLDER] 硬编码假数据，需替换为真实数据源查询
+        profile.put("_mockData", true);
         profile.put("relatedPersons", List.of(
                 Map.of("name", "张**", "role", "法人", "idCard", "110***********1234")
         ));
 
         // 风险信号
+        // TODO: [PLACEHOLDER] 硬编码假数据，需替换为真实数据源查询
         profile.put("riskSignals", List.of(
                 Map.of("type", "OVERDUE", "level", "WARNING", "description", "近6月逾期2次")
         ));
 
         // 数据完整性
+        // TODO: [PLACEHOLDER] 硬编码假数据，需替换为真实数据源查询
         List<String> availableSources = List.of("internal", "business_registration", "credit_bureau");
         List<String> missingSources = List.of("judicial", "telecom");
         profile.put("dataSourceStatus", Map.of(
@@ -374,6 +378,7 @@ public class EnterpriseProfileService {
     }
 
     // ========== 回退模拟数据 ==========
+    // TODO: [PLACEHOLDER] 以下方法返回硬编码假数据，仅用于开发/测试，生产环境需替换为真实数据源
 
     private Map<String, Object> fallbackBasicInfo(String enterpriseId) {
         Map<String, Object> info = new LinkedHashMap<>();

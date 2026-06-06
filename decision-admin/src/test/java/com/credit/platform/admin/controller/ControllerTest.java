@@ -14,6 +14,9 @@ import com.credit.platform.admin.service.RulePublishService;
 
 import org.junit.jupiter.api.*;
 import org.mockito.Mockito;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -39,6 +42,17 @@ class ControllerTest {
         void setUp() {
             publishService = Mockito.mock(RulePublishService.class);
             controller = new PublishController(publishService);
+            // Mock SecurityContext so getCurrentUser() returns "admin"
+            Authentication auth = Mockito.mock(Authentication.class);
+            when(auth.getName()).thenReturn("admin");
+            SecurityContext ctx = Mockito.mock(SecurityContext.class);
+            when(ctx.getAuthentication()).thenReturn(auth);
+            SecurityContextHolder.setContext(ctx);
+        }
+
+        @AfterEach
+        void tearDown() {
+            SecurityContextHolder.clearContext();
         }
 
         private RuleEntity buildEntity(String id, String type, int version, PublishStatus status) {
@@ -57,8 +71,7 @@ class ControllerTest {
             RuleEntity entity = buildEntity("R001", "RULE", 1, PublishStatus.TESTING);
             when(publishService.promoteToTesting("RULE", "R001", "admin")).thenReturn(entity);
 
-            var response = controller.promoteToTesting("RULE", "R001",
-                    new PublishController.OperatorRequest("admin"));
+            var response = controller.promoteToTesting("RULE", "R001");
 
             assertEquals(200, response.getStatusCode().value());
             ApiResponse<Map<String, Object>> body = response.getBody();
@@ -76,8 +89,7 @@ class ControllerTest {
                     .thenThrow(new IllegalArgumentException("RULE not found: R999"));
 
             assertThrows(IllegalArgumentException.class, () ->
-                    controller.promoteToTesting("RULE", "R999",
-                            new PublishController.OperatorRequest("admin")));
+                    controller.promoteToTesting("RULE", "R999"));
         }
 
         // ---------- submit-approval ----------
@@ -89,7 +101,7 @@ class ControllerTest {
                     .thenReturn(entity);
 
             var response = controller.submitForApproval("RULE", "R001",
-                    new PublishController.ApprovalRequest("admin", "ready for review"));
+                    new PublishController.ApprovalRequest("ready for review"));
 
             assertEquals(200, response.getStatusCode().value());
             assertEquals("PENDING_REVIEW", response.getBody().getData().get("status"));
@@ -102,11 +114,11 @@ class ControllerTest {
         @Test
         void approve_returnsOkWithSummary() {
             RuleEntity entity = buildEntity("R001", "RULE", 1, PublishStatus.APPROVED);
-            when(publishService.approve("RULE", "R001", "approver", "looks good"))
+            when(publishService.approve("RULE", "R001", "admin", "looks good"))
                     .thenReturn(entity);
 
             var response = controller.approve("RULE", "R001",
-                    new PublishController.ApprovalRequest("approver", "looks good"));
+                    new PublishController.ApprovalRequest("looks good"));
 
             assertEquals(200, response.getStatusCode().value());
             assertEquals("APPROVED", response.getBody().getData().get("status"));
@@ -117,16 +129,16 @@ class ControllerTest {
         @Test
         void reject_returnsOkWithSummary() {
             RuleEntity entity = buildEntity("R001", "RULE", 1, PublishStatus.DRAFT);
-            when(publishService.reject("RULE", "R001", "approver", "needs work"))
+            when(publishService.reject("RULE", "R001", "admin", "needs work"))
                     .thenReturn(entity);
 
             var response = controller.reject("RULE", "R001",
-                    new PublishController.RejectRequest("approver", "needs work"));
+                    new PublishController.RejectRequest("needs work"));
 
             assertEquals(200, response.getStatusCode().value());
             assertEquals("DRAFT", response.getBody().getData().get("status"));
 
-            verify(publishService).reject("RULE", "R001", "approver", "needs work");
+            verify(publishService).reject("RULE", "R001", "admin", "needs work");
         }
 
         // ---------- withdraw ----------
@@ -138,7 +150,7 @@ class ControllerTest {
                     .thenReturn(entity);
 
             var response = controller.withdraw("RULE", "R001",
-                    new PublishController.ApprovalRequest("admin", "withdraw"));
+                    new PublishController.ApprovalRequest("withdraw"));
 
             assertEquals(200, response.getStatusCode().value());
             assertEquals("TESTING", response.getBody().getData().get("status"));
@@ -195,7 +207,7 @@ class ControllerTest {
             when(publishService.startGrayscale("RULE", "R001", 10, "admin")).thenReturn(config);
 
             var response = controller.startGrayscale("RULE", "R001",
-                    new PublishController.GrayscaleStartRequest("admin", 10));
+                    new PublishController.GrayscaleStartRequest(10));
 
             assertEquals(200, response.getStatusCode().value());
             GrayscaleConfig data = response.getBody().getData();
@@ -212,8 +224,7 @@ class ControllerTest {
             config.adjustPercentage(25, "admin");
             when(publishService.rampUpGrayscale("RULE", "R001", "admin")).thenReturn(config);
 
-            var response = controller.rampUpGrayscale("RULE", "R001",
-                    new PublishController.OperatorRequest("admin"));
+            var response = controller.rampUpGrayscale("RULE", "R001");
 
             assertEquals(200, response.getStatusCode().value());
             assertNotNull(response.getBody().getData());
@@ -229,7 +240,7 @@ class ControllerTest {
             when(publishService.adjustGrayscale("RULE", "R001", 50, "admin")).thenReturn(config);
 
             var response = controller.adjustGrayscale("RULE", "R001",
-                    new PublishController.GrayscaleAdjustRequest("admin", 50));
+                    new PublishController.GrayscaleAdjustRequest(50));
 
             assertEquals(200, response.getStatusCode().value());
             assertEquals(50, response.getBody().getData().getPercentage());
@@ -244,8 +255,7 @@ class ControllerTest {
             config.pause("admin");
             when(publishService.pauseGrayscale("RULE", "R001", "admin")).thenReturn(config);
 
-            var response = controller.pauseGrayscale("RULE", "R001",
-                    new PublishController.OperatorRequest("admin"));
+            var response = controller.pauseGrayscale("RULE", "R001");
 
             assertEquals(200, response.getStatusCode().value());
             assertEquals(GrayscaleConfig.GrayscaleStatus.PAUSED,
@@ -262,8 +272,7 @@ class ControllerTest {
             config.resume("admin");
             when(publishService.resumeGrayscale("RULE", "R001", "admin")).thenReturn(config);
 
-            var response = controller.resumeGrayscale("RULE", "R001",
-                    new PublishController.OperatorRequest("admin"));
+            var response = controller.resumeGrayscale("RULE", "R001");
 
             assertEquals(200, response.getStatusCode().value());
             assertEquals(GrayscaleConfig.GrayscaleStatus.IN_PROGRESS,
@@ -291,8 +300,7 @@ class ControllerTest {
             entity.getAttributes().put("rollbackFrom", 1);
             when(publishService.rollback("RULE", "R001", 1, "admin")).thenReturn(entity);
 
-            var response = controller.rollback("RULE", "R001", 1,
-                    new PublishController.OperatorRequest("admin"));
+            var response = controller.rollback("RULE", "R001", 1);
 
             assertEquals(200, response.getStatusCode().value());
             assertEquals("R001", response.getBody().getData().get("id"));
@@ -308,8 +316,7 @@ class ControllerTest {
             RuleEntity entity = buildEntity("R001", "RULE", 1, PublishStatus.APPROVED);
             when(publishService.rollbackGrayscale("RULE", "R001", "admin")).thenReturn(entity);
 
-            var response = controller.rollbackGrayscale("RULE", "R001",
-                    new PublishController.OperatorRequest("admin"));
+            var response = controller.rollbackGrayscale("RULE", "R001");
 
             assertEquals(200, response.getStatusCode().value());
             assertEquals("APPROVED", response.getBody().getData().get("status"));
@@ -376,8 +383,7 @@ class ControllerTest {
             RuleEntity entity = buildEntity("R001", "RULE", 1, PublishStatus.TESTING);
             when(publishService.promoteToTesting("RULE", "R001", "admin")).thenReturn(entity);
 
-            var response = controller.promote("RULE", "R001",
-                    new PublishController.OperatorRequest("admin"));
+            var response = controller.promote("RULE", "R001");
 
             assertEquals(200, response.getStatusCode().value());
             assertEquals("TESTING", response.getBody().getData().get("status"));
@@ -390,8 +396,7 @@ class ControllerTest {
             RuleEntity entity = buildEntity("SC001", "SCORECARD", 1, PublishStatus.TESTING);
             when(publishService.promoteToTesting("SCORECARD", "SC001", "admin")).thenReturn(entity);
 
-            var response = controller.promoteToTesting("SCORECARD", "SC001",
-                    new PublishController.OperatorRequest("admin"));
+            var response = controller.promoteToTesting("SCORECARD", "SC001");
 
             assertEquals(200, response.getStatusCode().value());
             assertEquals("SCORECARD", response.getBody().getData().get("type"));

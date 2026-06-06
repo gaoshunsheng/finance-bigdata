@@ -70,6 +70,9 @@ public class DecisionClient {
         for (int attempt = 0; attempt <= config.getMaxRetries(); attempt++) {
             try {
                 return doExecute(request);
+            } catch (NonRetriableException e) {
+                // 4xx 客户端错误不重试，直接抛出
+                throw e;
             } catch (Exception e) {
                 lastException = e;
                 if (attempt < config.getMaxRetries()) {
@@ -95,12 +98,17 @@ public class DecisionClient {
             throw new DecisionClientException("Decision client is disabled");
         }
 
+        java.net.HttpURLConnection conn = null;
         try {
             String url = config.getReportUrl(decisionId);
-            java.net.HttpURLConnection conn = createGetConnection(url);
+            conn = createGetConnection(url);
             return readResponse(conn);
         } catch (Exception e) {
             throw new DecisionClientException("Failed to get report for: " + decisionId, e);
+        } finally {
+            if (conn != null) {
+                conn.disconnect();
+            }
         }
     }
 
@@ -132,33 +140,42 @@ public class DecisionClient {
         java.net.HttpURLConnection conn = (java.net.HttpURLConnection)
             new java.net.URL(url).openConnection();
 
-        conn.setRequestMethod("POST");
-        conn.setRequestProperty(HEADER_CONTENT_TYPE, CONTENT_TYPE_JSON);
-        conn.setRequestProperty("Accept", CONTENT_TYPE_JSON);
-        conn.setConnectTimeout((int) config.getConnectTimeoutMs());
-        conn.setReadTimeout((int) config.getReadTimeoutMs());
-        conn.setDoOutput(true);
+        try {
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty(HEADER_CONTENT_TYPE, CONTENT_TYPE_JSON);
+            conn.setRequestProperty("Accept", CONTENT_TYPE_JSON);
+            conn.setConnectTimeout((int) config.getConnectTimeoutMs());
+            conn.setReadTimeout((int) config.getReadTimeoutMs());
+            conn.setDoOutput(true);
 
-        // API Key 鉴权
-        if (config.getApiKey() != null && !config.getApiKey().isEmpty()) {
-            conn.setRequestProperty(HEADER_API_KEY, config.getApiKey());
+            // API Key 鉴权
+            if (config.getApiKey() != null && !config.getApiKey().isEmpty()) {
+                conn.setRequestProperty(HEADER_API_KEY, config.getApiKey());
+            }
+
+            // 发送请求
+            String jsonBody = toJson(request);
+            try (java.io.OutputStream os = conn.getOutputStream()) {
+                os.write(jsonBody.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            }
+
+            int responseCode = conn.getResponseCode();
+            if (responseCode != HTTP_OK) {
+                String errorBody = readError(conn);
+                // 4xx 客户端错误不可重试，直接抛出 NonRetriableException
+                if (responseCode >= 400 && responseCode < 500) {
+                    throw new NonRetriableException(
+                        "Client error HTTP " + responseCode + ": " + errorBody);
+                }
+                throw new DecisionClientException(
+                    "Server returned HTTP " + responseCode + ": " + errorBody);
+            }
+
+            String responseBody = readResponse(conn);
+            return parseResponse(responseBody);
+        } finally {
+            conn.disconnect();
         }
-
-        // 发送请求
-        String jsonBody = toJson(request);
-        try (java.io.OutputStream os = conn.getOutputStream()) {
-            os.write(jsonBody.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-        }
-
-        int responseCode = conn.getResponseCode();
-        if (responseCode != HTTP_OK) {
-            String errorBody = readError(conn);
-            throw new DecisionClientException(
-                "Server returned HTTP " + responseCode + ": " + errorBody);
-        }
-
-        String responseBody = readResponse(conn);
-        return parseResponse(responseBody);
     }
 
     private java.net.HttpURLConnection createGetConnection(String url) throws Exception {
@@ -358,5 +375,20 @@ public class DecisionClient {
 
     private void sleep(long ms) {
         try { Thread.sleep(ms); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+    }
+
+    // ========== 内部异常 ==========
+
+    /**
+     * 不可重试的客户端错误 (4xx)，用于区分可重试的服务端错误。
+     */
+    private static class NonRetriableException extends DecisionClientException {
+        NonRetriableException(String message) {
+            super(message);
+        }
+
+        NonRetriableException(String message, Throwable cause) {
+            super(message, cause);
+        }
     }
 }

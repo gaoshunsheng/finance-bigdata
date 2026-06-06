@@ -31,10 +31,13 @@ public class RedisFeatureSink extends RichSinkFunction<Map<String, Object>> {
     private final String redisUri;
     private final String featureType;
 
+    private static final int MAX_RECONNECT_ATTEMPTS = 3;
+
     private transient RedisClient redisClient;
     private transient StatefulRedisConnection<String, String> connection;
     private transient RedisCommands<String, String> commands;
     private transient ObjectMapper objectMapper;
+    private transient int consecutiveFailures;
 
     public RedisFeatureSink(String redisUri, String featureType) {
         this.redisUri = redisUri;
@@ -44,20 +47,35 @@ public class RedisFeatureSink extends RichSinkFunction<Map<String, Object>> {
     @Override
     public void open(org.apache.flink.configuration.Configuration parameters) throws Exception {
         this.objectMapper = new ObjectMapper();
+        this.consecutiveFailures = 0;
+        tryConnect();
+    }
+
+    private void tryConnect() {
         try {
+            // Close old connection if any
+            closeConnection();
             this.redisClient = RedisClient.create(RedisURI.create(redisUri));
             this.connection = redisClient.connect();
             this.commands = connection.sync();
+            this.consecutiveFailures = 0;
             log.info("[RedisFeatureSink] 连接成功: {}", redisUri);
         } catch (Exception e) {
-            log.warn("[RedisFeatureSink] Redis 连接失败，将跳过写入: {}", e.getMessage());
+            this.commands = null;
+            log.warn("[RedisFeatureSink] Redis 连接失败，将在下次写入时重试: {}", e.getMessage());
         }
     }
 
     @Override
     public void invoke(Map<String, Object> value, Context context) throws Exception {
         if (commands == null) {
-            return;
+            // Attempt reconnection if previously failed
+            if (consecutiveFailures < MAX_RECONNECT_ATTEMPTS) {
+                tryConnect();
+            }
+            if (commands == null) {
+                return;
+            }
         }
         try {
             String customerId = (String) value.get("customerId");
@@ -67,22 +85,36 @@ public class RedisFeatureSink extends RichSinkFunction<Map<String, Object>> {
             String key = FeatureKey.redisKey(featureType, customerId);
             String json = objectMapper.writeValueAsString(value);
             commands.setex(key, TTL_SECONDS, json);
+            consecutiveFailures = 0;
         } catch (Exception e) {
-            log.warn("[RedisFeatureSink] 写入失败，跳过: {}", e.getMessage());
+            consecutiveFailures++;
+            log.warn("[RedisFeatureSink] 写入失败 ({}/{}): {}",
+                    consecutiveFailures, MAX_RECONNECT_ATTEMPTS, e.getMessage());
+            if (consecutiveFailures >= MAX_RECONNECT_ATTEMPTS) {
+                log.error("[RedisFeatureSink] 连续失败次数达到上限，尝试重连");
+                tryConnect();
+            }
+        }
+    }
+
+    private void closeConnection() {
+        try {
+            if (connection != null) {
+                connection.close();
+                connection = null;
+            }
+            if (redisClient != null) {
+                redisClient.shutdown(2, 2, TimeUnit.SECONDS);
+                redisClient = null;
+            }
+            commands = null;
+        } catch (Exception e) {
+            log.warn("[RedisFeatureSink] 关闭连接异常: {}", e.getMessage());
         }
     }
 
     @Override
     public void close() throws Exception {
-        try {
-            if (connection != null) {
-                connection.close();
-            }
-            if (redisClient != null) {
-                redisClient.shutdown(2, 2, TimeUnit.SECONDS);
-            }
-        } catch (Exception e) {
-            log.warn("[RedisFeatureSink] 关闭连接异常: {}", e.getMessage());
-        }
+        closeConnection();
     }
 }

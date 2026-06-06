@@ -46,8 +46,8 @@
 
     <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #f0f0f0">
       <a-space>
-        <a-button type="primary" @click="handleSave">保存</a-button>
-        <a-button @click="handleSaveAndTest">保存并测试</a-button>
+        <a-button type="primary" :loading="saving" @click="handleSave">保存</a-button>
+        <a-button :loading="saving" @click="handleSaveAndTest">保存并测试</a-button>
         <a-button @click="$router.back()">取消</a-button>
       </a-space>
     </div>
@@ -61,6 +61,7 @@ import { message } from 'ant-design-vue'
 import ConditionBuilder from '@/components/rule/ConditionBuilder.vue'
 import type { ConditionTreeNode, ConditionField } from '@/components/rule/ConditionBuilder.vue'
 import ActionEditor from '@/components/rule/ActionEditor.vue'
+import { createRule, updateRule } from '@/api/admin'
 
 const route = useRoute()
 const router = useRouter()
@@ -99,21 +100,62 @@ const availableFields = ref<ConditionField[]>([
   { name: 'applyDate', label: '申请日期', type: 'DATE' },
 ])
 
-function handleSave() {
+const saving = ref(false)
+
+async function handleSave() {
   if (!form.name.trim()) {
     message.warning('请输入规则名称')
     return
   }
-  message.success(isEdit.value ? '规则已更新' : '规则已创建')
-  router.push('/rule')
+  saving.value = true
+  try {
+    const payload = {
+      name: form.name,
+      description: form.description,
+      content: JSON.stringify({ conditionTree: conditionTree.value, actions: actions.value }),
+      hitPolicy: form.hitPolicy,
+      tags: form.tags,
+    }
+    if (isEdit.value) {
+      await updateRule(route.params.id as string, payload)
+      message.success('规则已更新')
+    } else {
+      await createRule(payload)
+      message.success('规则已创建')
+    }
+    router.push('/rule')
+  } catch (err: any) {
+    message.error(err?.message || '保存失败')
+  } finally {
+    saving.value = false
+  }
 }
 
-function handleSaveAndTest() {
+async function handleSaveAndTest() {
   if (!form.name.trim()) {
     message.warning('请输入规则名称')
     return
   }
-  message.success('规则已保存，跳转到沙箱测试')
-  router.push('/sandbox')
+  saving.value = true
+  try {
+    const payload = {
+      name: form.name,
+      description: form.description,
+      content: JSON.stringify({ conditionTree: conditionTree.value, actions: actions.value }),
+      hitPolicy: form.hitPolicy,
+      tags: form.tags,
+    }
+    if (isEdit.value) {
+      await updateRule(route.params.id as string, payload)
+    } else {
+      await createRule(payload)
+    }
+    message.success('规则已保存，跳转到沙箱测试')
+    router.push('/sandbox')
+  } catch (err: any) {
+    message.error(err?.message || '保存失败')
+  } finally {
+    saving.value = false
+  }
 }
 </script>

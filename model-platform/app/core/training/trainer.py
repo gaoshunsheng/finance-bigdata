@@ -30,7 +30,10 @@ class ModelTrainer:
         Args:
             sample_manager: 样本管理器实例, 为 None 时自动创建新实例
         """
-        # 内存模型存储: model_id -> 训练结果字典
+        # TODO: [ARCHITECTURE] 当前为纯内存存储，进程重启后所有模型丢失。
+        #   需要接入持久化存储（如数据库、文件系统或模型仓库），
+        #   至少在模型训练完成后将 model_record 持久化，
+        #   启动时从存储加载已有模型索引。
         self._models: dict[str, dict[str, Any]] = {}
         self._id_counter: int = 0
         self._sample_manager: SampleManager = sample_manager or SampleManager()

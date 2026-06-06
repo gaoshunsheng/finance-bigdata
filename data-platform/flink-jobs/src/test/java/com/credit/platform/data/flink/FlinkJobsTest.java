@@ -300,7 +300,7 @@ class FlinkJobsTest {
     @Test
     @DisplayName("FeatureKey - HBase RowKey 包含反转客户 ID")
     void testHBaseRowKeyReverse() {
-        String rowKey = FeatureKey.hbaseRowKey("CUST_001", "credit_query_3m", 20260606120000L);
+        String rowKey = FeatureKey.hbaseRowKey("CUST_001", "credit_query_3m", "20260606120000");
         assertTrue(rowKey.startsWith("100_TSUC"), "RowKey 应以反转的客户 ID 开头");
         assertTrue(rowKey.contains("credit_query_3m"));
         assertTrue(rowKey.contains("20260606120000"));
