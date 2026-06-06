@@ -1,8 +1,16 @@
 package com.credit.platform.data.service.service;
 
 import com.credit.platform.data.service.model.CustomerFeatures;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.Get;
+import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.client.Table;
+import org.apache.hadoop.hbase.util.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
@@ -10,7 +18,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * 特征查询服务 — 实现 Redis → HBase 二级查询策略。
+ * 特征查询服务 — 实现 Redis -> HBase 二级查询策略。
  *
  * <p>查询策略:
  * <ol>
@@ -27,11 +35,20 @@ public class FeatureQueryService {
 
     private static final Logger log = LoggerFactory.getLogger(FeatureQueryService.class);
 
+    private final StringRedisTemplate stringRedisTemplate;
+    private final Connection hbaseConnection;
+    private final ObjectMapper objectMapper;
+
+    public FeatureQueryService(StringRedisTemplate stringRedisTemplate,
+                               Connection hbaseConnection,
+                               ObjectMapper objectMapper) {
+        this.stringRedisTemplate = stringRedisTemplate;
+        this.hbaseConnection = hbaseConnection;
+        this.objectMapper = objectMapper;
+    }
+
     /**
      * 查询客户全部实时特征。
-     *
-     * <p>当前实现为 Mock 模式（不依赖真实 Redis/HBase 连接），
-     * 生产环境需替换为真实的 Redis/HBase 查询逻辑。
      *
      * @param customerId 客户 ID
      * @return 客户特征数据
@@ -40,21 +57,22 @@ public class FeatureQueryService {
         long start = System.currentTimeMillis();
 
         Map<String, Object> features = new LinkedHashMap<>();
+        String[] featureTypes = {"credit_query_3m", "overdue_6m", "apply_freq_1m",
+                "transaction_summary_1h", "credit_score", "risk_level"};
 
-        // 模拟特征数据（生产环境从 Redis/HBase 查询）
-        features.put("credit_query_count_3m", mockFromRedis("credit_query_3m", customerId, 5));
-        features.put("overdue_count_6m", mockFromRedis("overdue_6m", customerId, 2));
-        features.put("apply_freq_1m", mockFromRedis("apply_freq_1m", customerId, 1));
-        features.put("transaction_summary_1h_total", mockFromHBase("transaction_summary_1h", customerId, 15000.00));
-        features.put("transaction_summary_1h_count", mockFromHBase("transaction_summary_1h_count", customerId, 3));
-        features.put("credit_score", mockFromHBase("credit_score", customerId, 720));
-        features.put("risk_level", mockFromHBase("risk_level", customerId, "LOW"));
+        for (String featureType : featureTypes) {
+            Map<String, Object> feature = querySingleFeature(featureType, customerId);
+            if (feature != null) {
+                features.putAll(feature);
+            }
+        }
 
         long elapsed = System.currentTimeMillis() - start;
-        log.info("特征查询完成: customerId={}, 特征数={}, 耗时={}ms, 来源=MOCK",
-                customerId, features.size(), elapsed);
+        String source = features.isEmpty() ? "MISS" : "HIT";
+        log.info("特征查询完成: customerId={}, 特征数={}, 耗时={}ms, 来源={}",
+                customerId, features.size(), elapsed, source);
 
-        return new CustomerFeatures(customerId, features, "MOCK", elapsed);
+        return new CustomerFeatures(customerId, features, source, elapsed);
     }
 
     /**
@@ -68,23 +86,72 @@ public class FeatureQueryService {
         long start = System.currentTimeMillis();
 
         Map<String, Object> features = new LinkedHashMap<>();
-        for (String key : featureKeys) {
-            features.put(key, mockFromRedis(key, customerId, 0));
+        for (String featureType : featureKeys) {
+            Map<String, Object> feature = querySingleFeature(featureType, customerId);
+            if (feature != null) {
+                features.putAll(feature);
+            }
         }
 
         long elapsed = System.currentTimeMillis() - start;
-        return new CustomerFeatures(customerId, features, "MOCK", elapsed);
+        String source = features.isEmpty() ? "MISS" : "HIT";
+        return new CustomerFeatures(customerId, features, source, elapsed);
     }
 
-    /** 模拟 Redis 查询 */
-    private Object mockFromRedis(String featureType, String customerId, Object defaultValue) {
-        // 生产环境: redisTemplate.opsForValue().get("feature:" + featureType + ":" + customerId)
-        return defaultValue;
-    }
+    /**
+     * 查询单个特征类型 — 先 Redis，后 HBase。
+     */
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> querySingleFeature(String featureType, String customerId) {
+        // 1. 尝试 Redis
+        try {
+            String key = "feature:" + featureType + ":" + customerId;
+            String value = stringRedisTemplate.opsForValue().get(key);
+            if (value != null) {
+                return objectMapper.readValue(value, Map.class);
+            }
+        } catch (Exception e) {
+            log.warn("Redis 查询失败，回退到 HBase: featureType={}, customerId={}, error={}",
+                    featureType, customerId, e.getMessage());
+        }
 
-    /** 模拟 HBase 查询 */
-    private Object mockFromHBase(String featureType, String customerId, Object defaultValue) {
-        // 生产环境: hbaseTemplate.get("customer_feature", rowKey, "cf:" + featureType)
-        return defaultValue;
+        // 2. 尝试 HBase
+        try {
+            Table table = hbaseConnection.getTable(TableName.valueOf("customer_feature"));
+            // Scan latest by prefix: reversed(customerId)_featureType_
+            String prefix = new StringBuilder(customerId).reverse().toString()
+                    + "_" + featureType + "_";
+            org.apache.hadoop.hbase.client.Scan scan = new org.apache.hadoop.hbase.client.Scan();
+            byte[] prefixBytes = Bytes.toBytes(prefix);
+            scan.setRowPrefixFilter(prefixBytes);
+            scan.setReversed(true);
+            scan.setLimit(1);
+            scan.addColumn(Bytes.toBytes("cf"), Bytes.toBytes("value"));
+
+            org.apache.hadoop.hbase.client.ResultScanner scanner = table.getScanner(scan);
+            Result result = scanner.next();
+            scanner.close();
+            table.close();
+
+            if (result != null && !result.isEmpty()) {
+                String json = Bytes.toString(result.getValue(Bytes.toBytes("cf"), Bytes.toBytes("value")));
+                if (json != null) {
+                    Map<String, Object> feature = objectMapper.readValue(json, Map.class);
+                    // 回写 Redis 缓存（TTL 1 小时）
+                    try {
+                        String key = "feature:" + featureType + ":" + customerId;
+                        stringRedisTemplate.opsForValue().set(key, json, java.time.Duration.ofHours(1));
+                    } catch (Exception e) {
+                        log.warn("Redis 回写失败: {}", e.getMessage());
+                    }
+                    return feature;
+                }
+            }
+        } catch (Exception e) {
+            log.warn("HBase 查询失败: featureType={}, customerId={}, error={}",
+                    featureType, customerId, e.getMessage());
+        }
+
+        return null;
     }
 }

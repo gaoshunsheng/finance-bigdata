@@ -1,5 +1,11 @@
 package com.credit.platform.admin.model;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler;
+
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -12,15 +18,19 @@ import java.util.Objects;
  * 当前使用内存存储，后续对接 MyBatis-Plus + MySQL。
  * </p>
  */
+@TableName(value = "rule_entity", autoResultMap = true)
 public class RuleEntity {
 
+    @TableId(type = IdType.INPUT)
     private String id;
     private String name;
     /** 类型: RULE / SCORECARD / DECISION_TABLE / DECISION_TREE / FLOW / VARIABLE */
     private String type;
     private int version;
+    @TableField("status")
     private PublishStatus status;
     /** 规则 JSON 定义 */
+    @TableField("content")
     private String content;
     /** 规则描述 */
     private String description;
@@ -29,6 +39,7 @@ public class RuleEntity {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     /** 扩展属性 */
+    @TableField(value = "attributes", typeHandler = JacksonTypeHandler.class)
     private Map<String, Object> attributes;
 
     public RuleEntity() {

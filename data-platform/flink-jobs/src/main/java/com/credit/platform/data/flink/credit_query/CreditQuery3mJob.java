@@ -16,8 +16,12 @@ import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.util.Collector;
 
+import com.credit.platform.data.flink.common.RedisFeatureSink;
+
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * FLINK_001: 近3月征信查询次数统计作业。
@@ -87,8 +91,19 @@ public class CreditQuery3mJob {
                 // 5. 聚合: 统计查询次数
                 .aggregate(new QueryCountAggregator(), new QueryCountWindowFunction());
 
-        // 6. 输出（占位 Sink，后续接入 Redis/HBase）
-        resultStream.print();
+        // 6. 转换为 Map 并写入 Redis + print 调试
+        DataStream<Map<String, Object>> featureStream = resultStream.map(result -> {
+            Map<String, Object> map = new HashMap<>();
+            map.put("customerId", result.customerId);
+            map.put("credit_query_count_3m", result.count);
+            map.put("windowStart", result.windowStart);
+            map.put("windowEnd", result.windowEnd);
+            return map;
+        });
+
+        String redisUri = getEnvOrDefault("REDIS_URI", "redis://localhost:6379");
+        featureStream.addSink(new RedisFeatureSink(redisUri, "credit_query_3m"));
+        featureStream.print();
 
         env.execute(JOB_NAME);
     }

@@ -1,5 +1,7 @@
 package com.credit.platform.data.flink.transaction;
 
+import com.credit.platform.data.flink.common.HBaseFeatureSink;
+import com.credit.platform.data.flink.common.RedisFeatureSink;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
@@ -18,6 +20,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * FLINK_004: 实时交易金额汇总作业
@@ -96,8 +100,24 @@ public class TransactionSummaryJob {
                 .aggregate(new TransactionAggregator())
                 .name("aggregate-transaction-summary");
 
-        // 6. 输出结果
-        summaryStream.print("TransactionSummary");
+        // 6. 转换为 Map 并写入 Redis + HBase + print 调试
+        DataStream<Map<String, Object>> featureStream = summaryStream.map(summary -> {
+            Map<String, Object> map = new HashMap<>();
+            map.put("customerId", summary.customerId);
+            map.put("transaction_summary_total", summary.totalAmount);
+            map.put("transaction_summary_count", summary.transactionCount);
+            map.put("transaction_summary_avg", summary.avgAmount);
+            map.put("windowStart", summary.windowStart);
+            map.put("windowEnd", summary.windowEnd);
+            return map;
+        });
+
+        String redisUri = getEnv("REDIS_URI", "redis://localhost:6379");
+        String zkQuorum = getEnv("HBASE_ZK_QUORUM", "localhost");
+        String zkPort = getEnv("HBASE_ZK_PORT", "2181");
+        featureStream.addSink(new RedisFeatureSink(redisUri, "transaction_summary_1h"));
+        featureStream.addSink(new HBaseFeatureSink(zkQuorum, zkPort, "transaction_summary_1h"));
+        featureStream.print("TransactionSummary");
 
         // 7. 执行作业
         env.execute("FLINK_004 - Transaction Summary Job");

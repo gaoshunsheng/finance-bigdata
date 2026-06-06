@@ -30,6 +30,22 @@ export default defineConfig({
   server: {
     port: 3000,
     proxy: {
+      '/api/v1/decision': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
+      '/api/v1/features': {
+        target: 'http://localhost:8083',
+        changeOrigin: true,
+      },
+      '/api/v1/profile': {
+        target: 'http://localhost:8083',
+        changeOrigin: true,
+      },
+      '/api/v1/reports': {
+        target: 'http://localhost:8083',
+        changeOrigin: true,
+      },
       '/api': {
         target: 'http://localhost:8081',
         changeOrigin: true,

@@ -452,6 +452,48 @@ services:
     networks:
       - finance-net
 
+  # ---------------------------------------------------------------------------
+  # Trino (Presto) — Federated Query Engine
+  # ---------------------------------------------------------------------------
+  trino:
+    image: trinodb/trino:435
+    container_name: finance-trino
+    restart: unless-stopped
+    ports:
+      - "8084:8080"
+    volumes:
+      - ./trino/etc:/etc/trino
+    depends_on:
+      - hive-server
+      - mysql
+      - hbase-master
+    networks:
+      - finance-net
+
+  # ---------------------------------------------------------------------------
+  # DolphinScheduler — Task Scheduling Platform
+  # ---------------------------------------------------------------------------
+  dolphinscheduler-standalone:
+    image: apache/dolphinscheduler-standalone-server:3.2.1
+    container_name: finance-dolphinscheduler
+    restart: unless-stopped
+    ports:
+      - "12345:12345"
+      - "25333:25333"
+    environment:
+      <<: *common-env
+      TZ: "Asia/Shanghai"
+      DATABASE_TYPE: "mysql"
+      DATABASE_HOST: "mysql"
+      DATABASE_PORT: "3306"
+      DATABASE_USERNAME: "root"
+      DATABASE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123456}
+      DATABASE_DATABASE: "dolphinscheduler"
+    depends_on:
+      - mysql
+    networks:
+      - finance-net
+
 # =============================================================================
 # Volumes
 # =============================================================================

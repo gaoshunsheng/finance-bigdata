@@ -16,8 +16,13 @@ import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.util.Collector;
 
+import com.credit.platform.data.flink.common.HBaseFeatureSink;
+import com.credit.platform.data.flink.common.RedisFeatureSink;
+
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * FLINK_002: 近6月逾期次数统计作业。
@@ -88,8 +93,23 @@ public class Overdue6mJob {
                 // 5. 聚合: 统计逾期次数和逾期总金额
                 .aggregate(new OverdueCountAggregator(), new OverdueCountWindowFunction());
 
-        // 6. 输出（占位 Sink，后续接入 Redis/HBase）
-        resultStream.print();
+        // 6. 转换为 Map 并写入 Redis + HBase + print 调试
+        DataStream<Map<String, Object>> featureStream = resultStream.map(result -> {
+            Map<String, Object> map = new HashMap<>();
+            map.put("customerId", result.customerId);
+            map.put("overdue_count_6m", result.overdueCount);
+            map.put("total_overdue_amount_6m", result.totalOverdueAmount);
+            map.put("windowStart", result.windowStart);
+            map.put("windowEnd", result.windowEnd);
+            return map;
+        });
+
+        String redisUri = getEnvOrDefault("REDIS_URI", "redis://localhost:6379");
+        String zkQuorum = getEnvOrDefault("HBASE_ZK_QUORUM", "localhost");
+        String zkPort = getEnvOrDefault("HBASE_ZK_PORT", "2181");
+        featureStream.addSink(new RedisFeatureSink(redisUri, "overdue_6m"));
+        featureStream.addSink(new HBaseFeatureSink(zkQuorum, zkPort, "overdue_6m"));
+        featureStream.print();
 
         env.execute(JOB_NAME);
     }

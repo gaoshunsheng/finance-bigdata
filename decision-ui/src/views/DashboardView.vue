@@ -79,7 +79,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive } from 'vue'
+import { reactive, onMounted } from 'vue'
 import {
   ApartmentOutlined,
   FundOutlined,
@@ -88,6 +88,7 @@ import {
 } from '@ant-design/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import { roleLabel } from '@/utils'
+import { listRules, listScorecards, listTables, listFlows } from '@/api/admin'
 
 const authStore = useAuthStore()
 
@@ -97,6 +98,34 @@ const stats = reactive({
   tables: 0,
   flows: 0,
 })
+
+async function loadStats() {
+  try {
+    const [rules, scorecards, tables, flows] = await Promise.allSettled([
+      listRules(),
+      listScorecards(),
+      listTables(),
+      listFlows(),
+    ])
+
+    if (rules.status === 'fulfilled' && rules.value) {
+      stats.rules = rules.value.total ?? (rules.value as any).length ?? 0
+    }
+    if (scorecards.status === 'fulfilled' && scorecards.value) {
+      stats.scorecards = scorecards.value.total ?? (scorecards.value as any).length ?? 0
+    }
+    if (tables.status === 'fulfilled' && tables.value) {
+      stats.tables = tables.value.total ?? (tables.value as any).length ?? 0
+    }
+    if (flows.status === 'fulfilled' && flows.value) {
+      stats.flows = flows.value.total ?? (flows.value as any).length ?? 0
+    }
+  } catch {
+    // Silently keep zeros on error
+  }
+}
+
+onMounted(loadStats)
 </script>
 
 <style scoped>

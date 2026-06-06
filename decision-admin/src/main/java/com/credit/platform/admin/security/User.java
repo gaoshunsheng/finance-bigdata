@@ -1,5 +1,10 @@
 package com.credit.platform.admin.security;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
+
 import java.time.LocalDateTime;
 import java.util.Objects;
 import java.util.Set;
@@ -10,17 +15,26 @@ import java.util.Set;
  * 密码使用 BCrypt 加密存储。
  * </p>
  */
+@TableName("sys_user")
 public class User {
 
+    @TableId(type = IdType.AUTO)
     private Long id;
     private String username;
+    @TableField("password")
     private String password;
+    @TableField("display_name")
     private String displayName;
     private String email;
+    @TableField("role")
     private Role role;
+    @TableField("enabled")
     private boolean enabled;
+    @TableField("created_at")
     private LocalDateTime createdAt;
+    @TableField("updated_at")
     private LocalDateTime updatedAt;
+    @TableField("last_login_at")
     private LocalDateTime lastLoginAt;
 
     public User() {

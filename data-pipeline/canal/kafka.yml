@@ -46,6 +46,8 @@ canal:
 # Topic命名规则: cdc_{database}_{table}
 # 例如: credit_platform.loan_application -> cdc_credit_platform_loan_application
 topics:
+  # ==================== 长名 Topic（数据仓库 / 全量归档用） ====================
+
   # 贷款申请表变更
   - database: "credit_platform"
     table: "loan_application"
@@ -70,6 +72,30 @@ topics:
   - database: "credit_platform"
     table: "decision_log"
     topic: "cdc_credit_platform_decision_log"
+
+  # ==================== 短名 Topic（Flink 实时作业消费） ====================
+  # 说明: 同一张表的数据同时投递到长名和短名 Topic，
+  #       长名供数据仓库归档，短名供 Flink 作业消费，减少 Topic 命名不一致问题。
+
+  # 征信报告 -> cdc_credit_query（供 CreditQuery3mJob 消费）
+  - database: "credit_platform"
+    table: "credit_report"
+    topic: "cdc_credit_query"
+
+  # 还款记录 -> cdc_overdue_event（供 Overdue6mJob 消费）
+  - database: "credit_platform"
+    table: "repayment_record"
+    topic: "cdc_overdue_event"
+
+  # 贷款申请 -> application_event（供 ApplyFreq1mJob 消费）
+  - database: "credit_platform"
+    table: "loan_application"
+    topic: "application_event"
+
+  # 贷款申请 -> transaction_event（供 TransactionSummaryJob 消费）
+  - database: "credit_platform"
+    table: "loan_application"
+    topic: "transaction_event"
 
 # ==================== 消息格式配置 ====================
 format:

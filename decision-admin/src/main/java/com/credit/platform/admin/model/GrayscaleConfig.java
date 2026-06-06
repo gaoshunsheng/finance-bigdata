@@ -1,5 +1,10 @@
 package com.credit.platform.admin.model;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
+
 import java.time.LocalDateTime;
 import java.util.Objects;
 
@@ -10,27 +15,38 @@ import java.util.Objects;
  * 每次调整灰度比例生成新记录，完整追溯灰度过程。
  * </p>
  */
+@TableName("grayscale_config")
 public class GrayscaleConfig {
 
     /** 灰度配置 ID */
+    @TableId(type = IdType.INPUT)
     private String configId;
     /** 关联的规则类型 */
+    @TableField("target_type")
     private String targetType;
     /** 关联的规则 ID */
+    @TableField("target_id")
     private String targetId;
     /** 关联的规则版本 */
+    @TableField("target_version")
     private int targetVersion;
     /** 当前灰度百分比 (0-100) */
+    @TableField("percentage")
     private int percentage;
     /** 上一次灰度百分比 */
+    @TableField("previous_percentage")
     private int previousPercentage;
     /** 操作人 */
+    @TableField("operator")
     private String operator;
     /** 灰度开始时间 */
+    @TableField("started_at")
     private LocalDateTime startedAt;
     /** 最后调整时间 */
+    @TableField("updated_at")
     private LocalDateTime updatedAt;
     /** 灰度状态 */
+    @TableField("grayscale_status")
     private GrayscaleStatus grayscaleStatus;
 
     public GrayscaleConfig() {

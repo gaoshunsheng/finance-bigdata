@@ -1,0 +1,72 @@
+{
+  "name": "daily_etl_pipeline",
+  "description": "每日 ETL 数据管道 — DataX同步 → Flink提交 → Spark ETL",
+  "globalParams": "dt=${system.biz.date}",
+  "tasks": [
+    {
+      "name": "datax_sync",
+      "taskType": "SHELL",
+      "taskParams": {
+        "rawScript": "#!/bin/bash\necho 'Starting DataX daily sync...'\n# DataX 同步 MySQL → HDFS\npython /opt/datax/bin/datax.py /opt/datax/job/mysql_to_hdfs_loan_application.json -p \"-Ddt=${dt}\"\npython /opt/datax/bin/datax.py /opt/datax/job/mysql_to_hdfs_customer_info.json -p \"-Ddt=${dt}\"\npython /opt/datax/bin/datax.py /opt/datax/job/mysql_to_hdfs_repayment_record.json -p \"-Ddt=${dt}\"\necho 'DataX sync completed'"
+      },
+      "retryTimes": 2,
+      "retryInterval": 300
+    },
+    {
+      "name": "spark_ods_to_dwd",
+      "taskType": "SHELL",
+      "taskParams": {
+        "rawScript": "#!/bin/bash\necho 'Starting ODS → DWD ETL...'\nspark-sql -f /opt/spark/scripts/etl_ods_to_dwd.sql --hivevar dt=${dt}\necho 'ODS → DWD completed'"
+      },
+      "retryTimes": 2,
+      "retryInterval": 300,
+      "depList": ["datax_sync"]
+    },
+    {
+      "name": "spark_dwd_to_dws",
+      "taskType": "SHELL",
+      "taskParams": {
+        "rawScript": "#!/bin/bash\necho 'Starting DWD → DWS ETL...'\nspark-sql -f /opt/spark/scripts/etl_dwd_to_dws.sql --hivevar dt=${dt}\necho 'DWD → DWS completed'"
+      },
+      "retryTimes": 2,
+      "retryInterval": 300,
+      "depList": ["spark_ods_to_dwd"]
+    },
+    {
+      "name": "spark_dws_to_ads",
+      "taskType": "SHELL",
+      "taskParams": {
+        "rawScript": "#!/bin/bash\necho 'Starting DWS → ADS ETL...'\nspark-sql -f /opt/spark/scripts/etl_dws_to_ads.sql --hivevar dt=${dt}\necho 'DWS → ADS completed'"
+      },
+      "retryTimes": 2,
+      "retryInterval": 300,
+      "depList": ["spark_dwd_to_dws"]
+    },
+    {
+      "name": "flink_submit_jobs",
+      "taskType": "SHELL",
+      "taskParams": {
+        "rawScript": "#!/bin/bash\necho 'Submitting Flink streaming jobs...'\nflink run -d /opt/flink/jobs/flink-jobs-1.0.0.jar\necho 'Flink jobs submitted'"
+      },
+      "retryTimes": 1,
+      "retryInterval": 60,
+      "depList": ["datax_sync"]
+    },
+    {
+      "name": "quality_check",
+      "taskType": "SHELL",
+      "taskParams": {
+        "rawScript": "#!/bin/bash\necho 'Running data quality checks...'\n# 检查分区数据量\nHIVE_COUNT=$(beeline -u jdbc:hive2://hive-server:10000 -e \"SELECT COUNT(*) FROM ods.ods_loan_application WHERE dt='${dt}'\" 2>/dev/null | tail -1)\necho \"ODS loan_application count: ${HIVE_COUNT}\"\nif [ \"$HIVE_COUNT\" -lt 1 ]; then\n  echo 'ERROR: No data in ODS partition!'\n  exit 1\nfi\necho 'Quality check passed'"
+      },
+      "retryTimes": 1,
+      "retryInterval": 60,
+      "depList": ["spark_ods_to_dwd"]
+    }
+  ],
+  "schedule": {
+    "crontab": "0 2 * * *",
+    "timezoneId": "Asia/Shanghai",
+    "startTime": "2024-01-01",
+    "endTime": "2099-12-31"
+  }
+}

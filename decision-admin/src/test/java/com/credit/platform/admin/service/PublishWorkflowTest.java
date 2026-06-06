@@ -8,7 +8,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.annotation.Rollback;
+import org.springframework.transaction.annotation.Transactional;
 
+import com.credit.platform.admin.DecisionAdminApplication;
 import com.credit.platform.admin.model.ApprovalRecord;
 import com.credit.platform.admin.model.ApprovalRecord.ApprovalAction;
 import com.credit.platform.admin.model.GrayscaleConfig;
@@ -20,29 +25,26 @@ import com.credit.platform.admin.model.VersionDiff.DiffType;
 
 /**
  * 发布流程完善测试 — 覆盖审批/灰度/回滚/版本对比。
- * <p>
- * 总计 ≥20 个用例，验证完整发布生命周期。
- * </p>
+ * 使用 H2 内存数据库。
  */
+@SpringBootTest(classes = DecisionAdminApplication.class)
+@Transactional
+@Rollback
 @DisplayName("发布流程完善")
 class PublishWorkflowTest {
 
+    @Autowired
     private RuleRepository repository;
+    @Autowired
     private RuleAdminService adminService;
+    @Autowired
     private ApprovalService approvalService;
+    @Autowired
     private GrayscalePublishService grayscaleService;
+    @Autowired
     private VersionDiffService diffService;
+    @Autowired
     private RulePublishService publishService;
-
-    @BeforeEach
-    void setUp() {
-        repository = new RuleRepository();
-        adminService = new RuleAdminService(repository);
-        approvalService = new ApprovalService(repository);
-        grayscaleService = new GrayscalePublishService(repository);
-        diffService = new VersionDiffService(repository);
-        publishService = new RulePublishService(repository, approvalService, grayscaleService, diffService);
-    }
 
     // ==================== 审批流程 ====================
 
@@ -107,7 +109,6 @@ class PublishWorkflowTest {
         @DisplayName("APR-05: 非 TESTING 状态不能提交审批")
         void submitForApproval_wrongStatus() {
             RuleEntity e = adminService.create("RULE", "R1", "{}", null);
-            // DRAFT 状态
             assertThrows(IllegalStateException.class,
                 () -> approvalService.submitForApproval("RULE", e.getId(), "dev01", "submit"));
         }
@@ -134,7 +135,6 @@ class PublishWorkflowTest {
             RuleEntity e = createAndSubmitForApproval();
             approvalService.approve("RULE", e.getId(), "rev01", "OK");
 
-            // 创建第二个版本并提交审批
             adminService.createNewVersion("RULE", e.getId());
             RuleEntity v2 = adminService.getLatest("RULE", e.getId());
             v2.setStatus(PublishStatus.TESTING);
@@ -144,7 +144,6 @@ class PublishWorkflowTest {
             List<ApprovalRecord> allHistory = approvalService.getApprovalHistory("RULE", e.getId());
             assertTrue(allHistory.size() >= 3);
 
-            // 按版本过滤
             List<ApprovalRecord> v1History = approvalService.getApprovalHistory("RULE", e.getId(), 1);
             assertEquals(2, v1History.size()); // SUBMIT + APPROVE
         }
@@ -187,7 +186,6 @@ class PublishWorkflowTest {
             assertEquals(100, c3.getPercentage());
             assertEquals(GrayscaleStatus.FULL, c3.getGrayscaleStatus());
 
-            // 100% 自动触发 RELEASED
             RuleEntity updated = adminService.getLatest("RULE", e.getId());
             assertEquals(PublishStatus.RELEASED, updated.getStatus());
         }
@@ -359,25 +357,20 @@ class PublishWorkflowTest {
         void fullLifecycle() {
             RuleEntity e = adminService.create("RULE", "R1", "{\"ruleSetId\":\"RS1\"}", null);
 
-            // DRAFT → TESTING
             e = publishService.promoteToTesting("RULE", e.getId(), "dev01");
             assertEquals(PublishStatus.TESTING, e.getStatus());
 
-            // TESTING → PENDING_REVIEW
             e = publishService.submitForApproval("RULE", e.getId(), "dev01", "Ready");
             assertEquals(PublishStatus.PENDING_REVIEW, e.getStatus());
 
-            // PENDING_REVIEW → APPROVED
             e = publishService.approve("RULE", e.getId(), "reviewer01", "LGTM");
             assertEquals(PublishStatus.APPROVED, e.getStatus());
 
-            // APPROVED → GRAYSCALE (5%)
             GrayscaleConfig config = publishService.startGrayscale("RULE", e.getId(), 5, "ops01");
             assertEquals(5, config.getPercentage());
             e = adminService.getLatest("RULE", e.getId());
             assertEquals(PublishStatus.GRAYSCALE, e.getStatus());
 
-            // 灰度提升到 100%
             publishService.adjustGrayscale("RULE", e.getId(), 100, "ops01");
             e = adminService.getLatest("RULE", e.getId());
             assertEquals(PublishStatus.RELEASED, e.getStatus());
@@ -398,14 +391,11 @@ class PublishWorkflowTest {
             publishService.promoteToTesting("RULE", e.getId(), "dev01");
             publishService.submitForApproval("RULE", e.getId(), "dev01", "v1");
 
-            // 驳回
             e = publishService.reject("RULE", e.getId(), "reviewer01", "条件不足");
             assertEquals(PublishStatus.DRAFT, e.getStatus());
 
-            // 修改内容
             adminService.update("RULE", e.getId(), "{\"v\":2}");
 
-            // 重新走流程
             publishService.promoteToTesting("RULE", e.getId(), "dev01");
             e = publishService.submitForApproval("RULE", e.getId(), "dev01", "v2 fixed");
             assertEquals(PublishStatus.PENDING_REVIEW, e.getStatus());
@@ -420,11 +410,9 @@ class PublishWorkflowTest {
             v2.setContent("{\"v\":2}");
             repository.save(v2);
 
-            // 推进 v2 到 TESTING
             v2.setStatus(PublishStatus.TESTING);
             repository.save(v2);
 
-            // 回滚到 v1
             RuleEntity v3 = publishService.rollback("RULE", v1.getId(), 1, "ops01");
             assertEquals(3, v3.getVersion());
             assertEquals(PublishStatus.DRAFT, v3.getStatus());
@@ -438,14 +426,12 @@ class PublishWorkflowTest {
             RuleEntity e = adminService.create("RULE", "R1", "{}", null);
             publishService.fullPublish("RULE", e.getId(), "admin");
 
-            // 创建新版本并进入灰度
             adminService.createNewVersion("RULE", e.getId());
             RuleEntity v2 = adminService.getLatest("RULE", e.getId());
             v2.setStatus(PublishStatus.APPROVED);
             repository.save(v2);
             publishService.startGrayscale("RULE", e.getId(), 5, "ops01");
 
-            // 灰度回滚
             RuleEntity rolled = publishService.rollbackGrayscale("RULE", e.getId(), "ops01");
             assertEquals(PublishStatus.APPROVED, rolled.getStatus());
         }
