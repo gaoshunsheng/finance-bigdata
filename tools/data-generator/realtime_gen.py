@@ -17,7 +17,7 @@ import random
 import signal
 import sys
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import httpx
@@ -120,7 +120,7 @@ class RealtimeGenerator:
 
     def _event_time_instant(self) -> str:
         """事件时间 (ISO-8601 Instant 格式: yyyy-MM-ddTHH:mm:ssZ)。"""
-        now = datetime.utcnow()
+        now = datetime.now(tz=timezone.utc).replace(tzinfo=None)
         offset = random.uniform(0, 1)
         event_time = now + timedelta(seconds=offset)
         return event_time.strftime("%Y-%m-%dT%H:%M:%SZ")

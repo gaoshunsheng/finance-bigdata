@@ -4,6 +4,7 @@ MySQL 连接池 + 批量写入模块。
 使用 pymysql 实现简单连接池，提供 batch_insert / execute / query 方法。
 """
 
+from decimal import Decimal
 from typing import Any
 
 import pymysql
@@ -36,6 +37,7 @@ class MySQLHelper:
                 charset="utf8mb4",
                 autocommit=False,
                 cursorclass=pymysql.cursors.DictCursor,
+                auth_plugin_map={"mysql_native_password": None},
             )
             logger.debug(f"MySQL 已连接: {self._host}:{self._port}/{self._database}")
         return self._connection
@@ -102,6 +104,14 @@ class MySQLHelper:
 
         return total_inserted
 
+    @staticmethod
+    def _convert_row(row: dict[str, Any]) -> dict[str, Any]:
+        """将 Decimal 转为 float，避免运算和 JSON 序列化问题。"""
+        return {
+            k: float(v) if isinstance(v, Decimal) else v
+            for k, v in row.items()
+        }
+
     def query(self, sql: str, params: tuple | dict | None = None) -> list[dict[str, Any]]:
         """
         执行查询 SQL，返回字典列表。
@@ -111,19 +121,21 @@ class MySQLHelper:
             params: 参数
 
         Returns:
-            结果行列表 (每行为 dict)
+            结果行列表 (每行为 dict，Decimal 已转为 float)
         """
         conn = self._get_connection()
         with conn.cursor() as cursor:
             cursor.execute(sql, params)
-            return cursor.fetchall()
+            rows = cursor.fetchall()
+            return [self._convert_row(r) for r in rows]
 
     def query_one(self, sql: str, params: tuple | dict | None = None) -> dict[str, Any] | None:
-        """执行查询 SQL，返回单行或 None。"""
+        """执行查询 SQL，返回单行或 None (Decimal 已转为 float)。"""
         conn = self._get_connection()
         with conn.cursor() as cursor:
             cursor.execute(sql, params)
-            return cursor.fetchone()
+            row = cursor.fetchone()
+            return self._convert_row(row) if row else None
 
     def query_count(self, table: str, where: str = "") -> int:
         """查询表行数。"""
