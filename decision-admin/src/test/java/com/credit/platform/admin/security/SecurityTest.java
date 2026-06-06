@@ -9,20 +9,21 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.annotation.Rollback;
+import org.springframework.transaction.annotation.Transactional;
 
-import com.credit.platform.admin.security.Permission;
-import com.credit.platform.admin.security.Role;
+import com.credit.platform.admin.DecisionAdminApplication;
 
 /**
  * 安全模块综合测试 - RBAC / JWT / 审计日志。
- * <p>
- * 覆盖 20+ 用例，验证权限模型、JWT 生命周期、审计日志。
- * </p>
+ * RBAC/JWT 测试为纯单元测试；UserService/AuditLog/Repository 使用 H2。
  */
 @DisplayName("安全模块")
 class SecurityTest {
 
-    // ==================== RBAC 模型 ====================
+    // ==================== RBAC 模型 (纯单元测试，无 DB) ====================
 
     @Nested
     @DisplayName("RBAC - 角色权限模型")
@@ -78,7 +79,7 @@ class SecurityTest {
         }
     }
 
-    // ==================== User 模型 ====================
+    // ==================== User 模型 (纯单元测试，无 DB) ====================
 
     @Nested
     @DisplayName("User - 用户模型")
@@ -119,18 +120,124 @@ class SecurityTest {
         }
     }
 
-    // ==================== UserService ====================
+    // ==================== JWT (纯单元测试，无 DB) ====================
 
     @Nested
-    @DisplayName("UserService - 用户管理")
-    class UserServiceTests {
+    @DisplayName("JwtService - JWT Token")
+    class JwtTests {
 
-        private UserService userService;
+        private JwtService jwtService;
 
         @BeforeEach
         void setUp() {
-            userService = new UserService(new UserRepository());
+            jwtService = new JwtService("test-secret-key-for-unit-tests-minimum-32-chars");
         }
+
+        @Test
+        @DisplayName("JWT-01: 生成并验证 Access Token")
+        void generateAndValidateAccessToken() {
+            String token = jwtService.generateAccessToken("zhangsan", Role.EDITOR);
+            assertNotNull(token);
+
+            Map<String, Object> claims = jwtService.validateAccessToken(token);
+            assertNotNull(claims);
+            assertEquals("zhangsan", claims.get("sub"));
+            assertEquals("EDITOR", claims.get("role"));
+            assertEquals("access", claims.get("type"));
+        }
+
+        @Test
+        @DisplayName("JWT-02: 无效 Token 验证失败")
+        void invalidToken() {
+            assertNull(jwtService.validateAccessToken("invalid.token.here"));
+            assertNull(jwtService.validateAccessToken(""));
+            assertNull(jwtService.validateAccessToken("not-even-jwt"));
+        }
+
+        @Test
+        @DisplayName("JWT-03: 篡改 Token 验证失败")
+        void tamperedToken() {
+            String token = jwtService.generateAccessToken("zhangsan", Role.EDITOR);
+            String[] parts = token.split("\\.");
+            String tampered = parts[0] + "." + parts[1] + ".tamperedSignature";
+            assertNull(jwtService.validateAccessToken(tampered));
+        }
+
+        @Test
+        @DisplayName("JWT-04: 从 Token 获取用户名和角色")
+        void getUsernameAndRoleFromToken() {
+            String token = jwtService.generateAccessToken("lisi", Role.APPROVER);
+            assertEquals("lisi", jwtService.getUsernameFromToken(token));
+            assertEquals(Role.APPROVER, jwtService.getRoleFromToken(token));
+        }
+
+        @Test
+        @DisplayName("JWT-05: Refresh Token 生成和验证")
+        void refreshTokenLifecycle() {
+            String refresh = jwtService.generateRefreshToken("zhangsan");
+            assertNotNull(refresh);
+            assertEquals("zhangsan", jwtService.validateRefreshToken(refresh));
+        }
+
+        @Test
+        @DisplayName("JWT-06: 撤销 Refresh Token")
+        void revokeRefreshToken() {
+            String refresh = jwtService.generateRefreshToken("zhangsan");
+            jwtService.revokeRefreshToken(refresh);
+            assertNull(jwtService.validateRefreshToken(refresh));
+        }
+
+        @Test
+        @DisplayName("JWT-07: 无效 Refresh Token 换新 Token 失败")
+        void refreshTokens_invalid() {
+            JwtService.TokenPair result = jwtService.refreshTokens(
+                "nonexistent-token",
+                username -> Role.EDITOR);
+            assertNull(result);
+        }
+
+        @Test
+        @DisplayName("JWT-08: Refresh Token 正确换新 Token 对")
+        void refreshTokensCorrect() {
+            String refreshToken = jwtService.generateRefreshToken("zhangsan");
+
+            JwtService.TokenPair newTokens = jwtService.refreshTokens(
+                refreshToken,
+                username -> "zhangsan".equals(username) ? Role.EDITOR : null);
+
+            assertNotNull(newTokens);
+            assertNotNull(newTokens.accessToken());
+            assertNotNull(newTokens.refreshToken());
+
+            assertNull(jwtService.validateRefreshToken(refreshToken));
+
+            Map<String, Object> claims = jwtService.validateAccessToken(newTokens.accessToken());
+            assertEquals("zhangsan", claims.get("sub"));
+            assertEquals("EDITOR", claims.get("role"));
+        }
+
+        @Test
+        @DisplayName("JWT-09: 不同角色生成不同 Token")
+        void differentRolesDifferentTokens() {
+            String viewerToken = jwtService.generateAccessToken("v1", Role.VIEWER);
+            String adminToken = jwtService.generateAccessToken("a1", Role.ADMIN);
+
+            assertEquals(Role.VIEWER, jwtService.getRoleFromToken(viewerToken));
+            assertEquals(Role.ADMIN, jwtService.getRoleFromToken(adminToken));
+        }
+    }
+
+    // ==================== UserService (SpringBootTest, 需要 H2) ====================
+
+    @Nested
+    @SpringBootTest(classes = DecisionAdminApplication.class)
+    @Transactional
+    @Rollback
+    @DisplayName("UserService - 用户管理")
+    class UserServiceTests {
+
+        @Autowired
+        private UserService userService;
 
         @Test
         @DisplayName("USVC-01: 创建用户并验证密码")
@@ -225,128 +332,17 @@ class SecurityTest {
         }
     }
 
-    // ==================== JWT ====================
+    // ==================== AuditLogService (SpringBootTest, 需要 H2) ====================
 
     @Nested
-    @DisplayName("JwtService - JWT Token")
-    class JwtTests {
-
-        private JwtService jwtService;
-
-        @BeforeEach
-        void setUp() {
-            jwtService = new JwtService("test-secret-key-for-unit-tests-minimum-32-chars");
-        }
-
-        @Test
-        @DisplayName("JWT-01: 生成并验证 Access Token")
-        void generateAndValidateAccessToken() {
-            String token = jwtService.generateAccessToken("zhangsan", Role.EDITOR);
-            assertNotNull(token);
-
-            Map<String, Object> claims = jwtService.validateAccessToken(token);
-            assertNotNull(claims);
-            assertEquals("zhangsan", claims.get("sub"));
-            assertEquals("EDITOR", claims.get("role"));
-            assertEquals("access", claims.get("type"));
-        }
-
-        @Test
-        @DisplayName("JWT-02: 无效 Token 验证失败")
-        void invalidToken() {
-            assertNull(jwtService.validateAccessToken("invalid.token.here"));
-            assertNull(jwtService.validateAccessToken(""));
-            assertNull(jwtService.validateAccessToken("not-even-jwt"));
-        }
-
-        @Test
-        @DisplayName("JWT-03: 篡改 Token 验证失败")
-        void tamperedToken() {
-            String token = jwtService.generateAccessToken("zhangsan", Role.EDITOR);
-            // 篡改 payload
-            String[] parts = token.split("\\.");
-            String tampered = parts[0] + "." + parts[1] + ".tamperedSignature";
-            assertNull(jwtService.validateAccessToken(tampered));
-        }
-
-        @Test
-        @DisplayName("JWT-04: 从 Token 获取用户名和角色")
-        void getUsernameAndRoleFromToken() {
-            String token = jwtService.generateAccessToken("lisi", Role.APPROVER);
-            assertEquals("lisi", jwtService.getUsernameFromToken(token));
-            assertEquals(Role.APPROVER, jwtService.getRoleFromToken(token));
-        }
-
-        @Test
-        @DisplayName("JWT-05: Refresh Token 生成和验证")
-        void refreshTokenLifecycle() {
-            String refresh = jwtService.generateRefreshToken("zhangsan");
-            assertNotNull(refresh);
-            assertEquals("zhangsan", jwtService.validateRefreshToken(refresh));
-        }
-
-        @Test
-        @DisplayName("JWT-06: 撤销 Refresh Token")
-        void revokeRefreshToken() {
-            String refresh = jwtService.generateRefreshToken("zhangsan");
-            jwtService.revokeRefreshToken(refresh);
-            assertNull(jwtService.validateRefreshToken(refresh));
-        }
-
-        @Test
-        @DisplayName("JWT-07: 无效 Refresh Token 换新 Token 失败")
-        void refreshTokens_invalid() {
-            JwtService.TokenPair result = jwtService.refreshTokens(
-                "nonexistent-token",
-                username -> Role.EDITOR);
-            assertNull(result);
-        }
-
-        @Test
-        @DisplayName("JWT-08: Refresh Token 正确换新 Token 对")
-        void refreshTokensCorrect() {
-            String refreshToken = jwtService.generateRefreshToken("zhangsan");
-
-            JwtService.TokenPair newTokens = jwtService.refreshTokens(
-                refreshToken,
-                username -> "zhangsan".equals(username) ? Role.EDITOR : null);
-
-            assertNotNull(newTokens);
-            assertNotNull(newTokens.accessToken());
-            assertNotNull(newTokens.refreshToken());
-
-            // 旧 refresh token 已失效
-            assertNull(jwtService.validateRefreshToken(refreshToken));
-
-            // 新 access token 有效
-            Map<String, Object> claims = jwtService.validateAccessToken(newTokens.accessToken());
-            assertEquals("zhangsan", claims.get("sub"));
-            assertEquals("EDITOR", claims.get("role"));
-        }
-
-        @Test
-        @DisplayName("JWT-09: 不同角色生成不同 Token")
-        void differentRolesDifferentTokens() {
-            String viewerToken = jwtService.generateAccessToken("v1", Role.VIEWER);
-            String adminToken = jwtService.generateAccessToken("a1", Role.ADMIN);
-
-            assertEquals(Role.VIEWER, jwtService.getRoleFromToken(viewerToken));
-            assertEquals(Role.ADMIN, jwtService.getRoleFromToken(adminToken));
-        }
-    }
-
-    // ==================== 审计日志 ====================
-
-    @Nested
+    @SpringBootTest(classes = DecisionAdminApplication.class)
+    @Transactional
+    @Rollback
     @DisplayName("AuditLogService - 审计日志")
     class AuditLogTests {
 
+        @Autowired
         private AuditLogService auditLogService;
-
-        @BeforeEach
-        void setUp() {
-            auditLogService = new AuditLogService(new AuditLogRepository());
-        }
 
         @Test
         @DisplayName("AUD-01: 记录操作审计日志")
@@ -423,18 +419,17 @@ class SecurityTest {
         }
     }
 
-    // ==================== UserRepository ====================
+    // ==================== UserRepository (SpringBootTest, 需要 H2) ====================
 
     @Nested
+    @SpringBootTest(classes = DecisionAdminApplication.class)
+    @Transactional
+    @Rollback
     @DisplayName("UserRepository - 用户仓库")
     class UserRepositoryTests {
 
+        @Autowired
         private UserRepository repo;
-
-        @BeforeEach
-        void setUp() {
-            repo = new UserRepository();
-        }
 
         @Test
         @DisplayName("UREP-01: 保存和查找")

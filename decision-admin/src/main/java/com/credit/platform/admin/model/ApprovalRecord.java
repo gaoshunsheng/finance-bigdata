@@ -1,5 +1,10 @@
 package com.credit.platform.admin.model;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
+
 import java.time.LocalDateTime;
 import java.util.Objects;
 
@@ -10,22 +15,31 @@ import java.util.Objects;
  * 每次操作生成一条 ApprovalRecord，完整追溯审批历史。
  * </p>
  */
+@TableName("approval_record")
 public class ApprovalRecord {
 
+    @TableId(type = IdType.INPUT)
     private String recordId;
     /** 关联的规则类型: RULE / SCORECARD / DECISION_TABLE / DECISION_TREE / FLOW / VARIABLE */
+    @TableField("target_type")
     private String targetType;
     /** 关联的规则 ID */
+    @TableField("target_id")
     private String targetId;
     /** 关联的规则版本 */
+    @TableField("target_version")
     private int targetVersion;
     /** 操作类型 */
+    @TableField("action")
     private ApprovalAction action;
     /** 操作人 */
+    @TableField("operator")
     private String operator;
     /** 审批意见/原因 */
+    @TableField("comment")
     private String comment;
     /** 操作时间 */
+    @TableField("operated_at")
     private LocalDateTime operatedAt;
 
     public ApprovalRecord() {

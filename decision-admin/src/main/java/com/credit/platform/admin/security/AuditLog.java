@@ -1,5 +1,10 @@
 package com.credit.platform.admin.security;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
+
 import java.time.LocalDateTime;
 import java.util.Objects;
 
@@ -9,28 +14,40 @@ import java.util.Objects;
  * 审计日志保留 5 年，不可修改/删除。
  * </p>
  */
+@TableName("audit_log")
 public class AuditLog {
 
+    @TableId(type = IdType.AUTO)
     private Long id;
     /** 操作人 */
+    @TableField("operator")
     private String operator;
     /** 操作类型: CREATE / UPDATE / DELETE / PUBLISH / APPROVE / REJECT / ROLLBACK / GRAYSCALE / LOGIN */
+    @TableField("action")
     private String action;
     /** 目标类型: RULE / SCORECARD / DECISION_TABLE / DECISION_TREE / FLOW / VARIABLE / USER */
+    @TableField("target_type")
     private String targetType;
     /** 目标 ID */
+    @TableField("target_id")
     private String targetId;
     /** 目标版本 */
+    @TableField("target_version")
     private Integer targetVersion;
     /** 变更前内容 */
+    @TableField("before_snapshot")
     private String beforeSnapshot;
     /** 变更后内容 */
+    @TableField("after_snapshot")
     private String afterSnapshot;
     /** 操作详情 */
+    @TableField("details")
     private String details;
     /** 操作 IP */
+    @TableField("ip_address")
     private String ipAddress;
     /** 操作时间 */
+    @TableField("operated_at")
     private LocalDateTime operatedAt;
 
     public AuditLog() {

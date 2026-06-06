@@ -5,26 +5,29 @@ import static org.junit.jupiter.api.Assertions.*;
 import java.util.List;
 import java.util.Map;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.annotation.Rollback;
+import org.springframework.transaction.annotation.Transactional;
 
+import com.credit.platform.admin.DecisionAdminApplication;
 import com.credit.platform.admin.model.PublishStatus;
 import com.credit.platform.admin.model.RuleEntity;
 
 /**
- * 规则管理服务测试。
+ * 规则管理服务测试 — 使用 H2 内存数据库。
  */
+@SpringBootTest(classes = DecisionAdminApplication.class)
+@Transactional
+@Rollback
 @DisplayName("RuleAdminService CRUD + 发布流程")
 class RuleAdminServiceTest {
 
+    @Autowired
     private RuleAdminService service;
-
-    @BeforeEach
-    void setUp() {
-        service = new RuleAdminService(new RuleRepository());
-    }
 
     @Nested
     @DisplayName("CRUD")
