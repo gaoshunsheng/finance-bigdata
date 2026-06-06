@@ -482,6 +482,8 @@ services:
       - "8084:8080"
     volumes:
       - ./trino/etc:/etc/trino
+      - ./hadoop/core-site.xml:/etc/hadoop/conf/core-site.xml:ro
+      - ./hadoop/hdfs-site.xml:/etc/hadoop/conf/hdfs-site.xml:ro
     depends_on:
       - hive-server
       - mysql
@@ -569,14 +571,12 @@ services:
     environment:
       canal.auto.scan: "false"
       canal.destinations: "credit_platform"
-      canal.instance.master.address: "mysql:3306"
-      canal.instance.dbUsername: "credit_admin"
-      canal.instance.dbPassword: "credit_pass_2024"
-      canal.instance.filter.regex: "credit_platform\\..*"
+      canal.serverMode: "kafka"
       canal.mq.servers: "kafka:9092"
-      canal.mq.topic: "cdc_all_events"
-      canal.mq.partition: "0"
+      kafka.bootstrap.servers: "kafka:9092"
       TZ: "Asia/Shanghai"
+    volumes:
+      - ./canal/instance.properties:/home/admin/canal-server/conf/credit_platform/instance.properties:ro
     depends_on:
       - mysql
       - kafka
@@ -587,18 +587,20 @@ services:
   # Data Pipeline: DataX — Batch data sync (MySQL → HDFS)
   # ---------------------------------------------------------------------------
   datax:
-    image: python:3.11-slim
+    build:
+      context: .
+      dockerfile: Dockerfile.datax
     container_name: finance-datax
     restart: unless-stopped
     environment:
       TZ: "Asia/Shanghai"
+      DATAX_HOME: "/opt/datax"
     volumes:
       - ../data-pipeline/datax/jobs:/datax/job:ro
       - ../data-pipeline/datax/run_daily_sync.sh:/datax/run_daily_sync.sh:ro
     depends_on:
       - mysql
       - hadoop-namenode
-    entrypoint: ["tail", "-f", "/dev/null"]
     networks:
       - finance-net
 

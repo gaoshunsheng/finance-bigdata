@@ -1,0 +1,22 @@
+FROM python:3.11-slim
+
+LABEL maintainer="finance-bigdata"
+LABEL description="DataX - Alibaba offline data sync tool"
+
+# Install JRE (DataX is Java-based) and wget
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends default-jre-headless wget procps && \
+    rm -rf /var/lib/apt/lists/*
+
+# Download and install DataX
+ENV DATAX_HOME=/opt/datax
+RUN wget -q "https://datax-opensource.oss-cn-hangzhou.aliyuncs.com/202309/datax.tar.gz" \
+    -O /tmp/datax.tar.gz && \
+    mkdir -p /opt && \
+    tar -xzf /tmp/datax.tar.gz -C /opt && \
+    rm -f /tmp/datax.tar.gz && \
+    chmod +x /opt/datax/bin/*.py
+
+WORKDIR /opt/datax
+
+ENTRYPOINT ["tail", "-f", "/dev/null"]
