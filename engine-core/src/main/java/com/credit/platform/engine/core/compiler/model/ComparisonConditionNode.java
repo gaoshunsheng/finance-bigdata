@@ -75,6 +75,10 @@ public final class ComparisonConditionNode implements ConditionNode {
                     ((Number) expected).doubleValue()
                 );
             }
+            // 类型不匹配时直接返回不匹配，避免 ClassCastException
+            if (!actual.getClass().isInstance(expected) && !expected.getClass().isInstance(actual)) {
+                return 1;
+            }
             return ((Comparable<Object>) actual).compareTo(expected);
         } catch (ClassCastException e) {
             return 1; // 类型不兼容视为不匹配

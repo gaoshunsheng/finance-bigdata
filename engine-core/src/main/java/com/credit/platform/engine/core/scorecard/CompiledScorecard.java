@@ -111,9 +111,28 @@ public final class CompiledScorecard implements CompiledRule {
                 ? ((Number) value).doubleValue()
                 : Double.NaN;
 
-            for (Bin bin : bins) {
-                if (bin.matches(numValue)) {
-                    return bin;
+            if (Double.isNaN(numValue)) {
+                return null;
+            }
+
+            // 二分查找：bins 已按 lowerBound 排序
+            int lo = 0, hi = bins.size() - 1;
+            while (lo <= hi) {
+                int mid = (lo + hi) >>> 1;
+                Bin midBin = bins.get(mid);
+                double lower = (midBin.lowerBound == null)
+                    ? Double.NEGATIVE_INFINITY
+                    : ((Number) midBin.lowerBound).doubleValue();
+
+                if (numValue < lower) {
+                    hi = mid - 1;
+                } else {
+                    // numValue >= lower，检查是否匹配当前 bin
+                    if (midBin.matches(numValue)) {
+                        return midBin;
+                    }
+                    // 不匹配说明 numValue >= upperBound，继续向右搜索
+                    lo = mid + 1;
                 }
             }
             return null;
@@ -194,8 +213,11 @@ public final class CompiledScorecard implements CompiledRule {
                 return "REJECT";
             } else if (score < review) {
                 return "REVIEW";
-            } else {
+            } else if (score >= pass) {
                 return "PASS";
+            } else {
+                // review <= score < pass：介于审核和通过之间
+                return "REVIEW";
             }
         }
 

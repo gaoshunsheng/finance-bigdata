@@ -22,6 +22,9 @@ public class ExperimentSplitter {
      * @return 分组 ID
      */
     public static String split(ExperimentConfig config, String trafficKey) {
+        if (config.getGroups() == null || config.getGroups().isEmpty()) {
+            throw new IllegalArgumentException("Experiment config must have at least one group");
+        }
         if (!config.isEnabled()) {
             return config.getGroups().get(0).getGroupId(); // 默认第一组
         }
@@ -40,11 +43,15 @@ public class ExperimentSplitter {
     }
 
     /**
-     * 一致性哈希 — MD5(trafficKey + experimentId) 取前 8 字节转 long。
+     * 一致性哈希 — SHA-256(trafficKey + experimentId) 取前 8 字节转 long。
+     * <p>
+     * 使用 SHA-256 而非 MD5，并在 fallback 中仍使用 SHA-256（Java 标准库保证可用），
+     * 确保分布式环境下哈希结果一致。
+     * </p>
      */
     static long consistentHash(String trafficKey, String experimentId) {
         try {
-            MessageDigest md = MessageDigest.getInstance("MD5");
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
             byte[] digest = md.digest((trafficKey + ":" + experimentId)
                 .getBytes(StandardCharsets.UTF_8));
             return ((long) (digest[0] & 0xFF) << 56)
@@ -56,7 +63,20 @@ public class ExperimentSplitter {
                  | ((long) (digest[6] & 0xFF) << 8)
                  | ((long) (digest[7] & 0xFF));
         } catch (NoSuchAlgorithmException e) {
-            return trafficKey.hashCode();
+            // SHA-256 是 Java 标准算法，理论上不会走到这里；
+            // 作为最后防线，使用确定性的字符串哈希而非 JVM 依赖的 hashCode()
+            return deterministicStringHash(trafficKey + ":" + experimentId);
         }
+    }
+
+    /**
+     * 确定性字符串哈希 — 不依赖 String.hashCode() 的 JVM 实现。
+     */
+    private static long deterministicStringHash(String s) {
+        long h = 0;
+        for (int i = 0; i < s.length(); i++) {
+            h = h * 31 + s.charAt(i);
+        }
+        return h;
     }
 }

@@ -88,11 +88,12 @@ public final class ExecutionContext {
         if (value == null) {
             return defaultValue;
         }
-        try {
-            return (T) value;
-        } catch (ClassCastException e) {
+        // 类型擦除导致 (T) value 的 CCE 在调用方抛出，此处无法 catch。
+        // 改为用 defaultValue 的 Class 做类型检查。
+        if (defaultValue != null && !defaultValue.getClass().isInstance(value)) {
             return defaultValue;
         }
+        return (T) value;
     }
 
     /**

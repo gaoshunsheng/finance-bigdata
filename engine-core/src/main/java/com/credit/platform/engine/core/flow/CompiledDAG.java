@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.logging.Logger;
 
 /**
  * 编译后的 DAG 决策流 — 拓扑排序 + 逐步执行。
@@ -29,6 +30,7 @@ import java.util.Set;
  */
 public final class CompiledDAG implements CompiledRule {
 
+    private static final Logger LOGGER = Logger.getLogger(CompiledDAG.class.getName());
     private static final String RULE_TYPE = "DECISION_FLOW";
 
     private final String flowId;
