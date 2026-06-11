@@ -119,7 +119,10 @@
                         <configuration>
                             <artifactSet>
                                 <excludes>
-                                    <exclude>org.apache.flink:flink-*</exclude>
+                                    <exclude>org.apache.flink:flink-streaming-java</exclude>
+                                    <exclude>org.apache.flink:flink-clients</exclude>
+                                    <exclude>org.apache.flink:flink-connector-kafka</exclude>
+                                    <exclude>org.apache.kafka:kafka-clients</exclude>
                                 </excludes>
                             </artifactSet>
                         </configuration>

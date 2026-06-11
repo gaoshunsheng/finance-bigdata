@@ -20,10 +20,22 @@ services:
   # 测试环境按比例缩小: 天→分钟, 用于加速实时特征计算验证
   flink-jobmanager:
     environment:
-      FLINK_WINDOW_SIZE_MS: "5400000"     # 90 分钟 (生产: 90天=7776000000ms)
-      FLINK_WINDOW_SLIDE_MS: "60000"      # 1 分钟  (生产: 1小时=3600000ms)
+      FLINK_WINDOW_SIZE_MS: "60000"       # 1 分钟 (测试用，生产: 90天)
+      FLINK_WINDOW_SLIDE_MS: "10000"      # 10 秒  (测试用，生产: 1小时)
+      KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
+      REDIS_URI: "redis://:redis_pass_2024@redis:6379"
+      HBASE_ZK_QUORUM: "finance-hbase-master"
+      HBASE_ZK_PORT: "2181"
+      ES_HOST: "finance-elasticsearch"
+      ES_PORT: "9200"
 
   flink-taskmanager:
     environment:
-      FLINK_WINDOW_SIZE_MS: "5400000"
-      FLINK_WINDOW_SLIDE_MS: "60000"
+      FLINK_WINDOW_SIZE_MS: "60000"
+      FLINK_WINDOW_SLIDE_MS: "10000"
+      KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
+      REDIS_URI: "redis://:redis_pass_2024@redis:6379"
+      HBASE_ZK_QUORUM: "finance-hbase-master"
+      HBASE_ZK_PORT: "2181"
+      ES_HOST: "finance-elasticsearch"
+      ES_PORT: "9200"

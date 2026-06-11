@@ -15,3 +15,4 @@ model-platform/app/storage/
 .worktrees/
 worktrees/
 .gstack/
+docs/deployment/flink-lib/*.jar

@@ -6,7 +6,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.AggregateFunction;
+import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
@@ -70,7 +72,7 @@ public class TransactionSummaryJob {
                 .setBootstrapServers(getEnv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092"))
                 .setGroupId("flink-transaction-summary")
                 .setTopics(getEnv("KAFKA_TOPIC", "transaction_event"))
-                .setStartingOffsets(OffsetsInitializer.latest())
+                .setStartingOffsets(OffsetsInitializer.earliest())
                 .setValueOnlyDeserializer(new SimpleStringSchema())
                 .build();
 
@@ -112,7 +114,7 @@ public class TransactionSummaryJob {
             map.put("windowStart", summary.windowStart);
             map.put("windowEnd", summary.windowEnd);
             return map;
-        });
+        }).returns(new TypeHint<Map<String, Object>>() {});
 
         String redisUri = getEnv("REDIS_URI", "redis://localhost:6379");
         String zkQuorum = getEnv("HBASE_ZK_QUORUM", "localhost");

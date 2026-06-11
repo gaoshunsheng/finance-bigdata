@@ -41,7 +41,7 @@ public class KafkaSourceFactory {
                 .setBootstrapServers(bootstrapServers)
                 .setGroupId(groupId)
                 .setTopics(topics)
-                .setStartingOffsets(OffsetsInitializer.latest())
+                .setStartingOffsets(OffsetsInitializer.earliest())
                 .setValueOnlyDeserializer(new SimpleStringSchema())
                 .build();
     }

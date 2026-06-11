@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
+import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -75,7 +76,7 @@ public class DataQualityCheckJob {
                 .setBootstrapServers(getEnv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092"))
                 .setGroupId("flink-data-quality-check")
                 .setTopics(getEnv("KAFKA_TOPIC", "cdc_all_events"))
-                .setStartingOffsets(OffsetsInitializer.latest())
+                .setStartingOffsets(OffsetsInitializer.earliest())
                 .setValueOnlyDeserializer(new SimpleStringSchema())
                 .build();
 
@@ -102,7 +103,7 @@ public class DataQualityCheckJob {
             map.put("eventTimestamp", v.timestamp);
             map.put("severity", "HIGH");
             return map;
-        });
+        }).returns(new TypeHint<Map<String, Object>>() {});
 
         String esHost = getEnv("ES_HOST", "localhost");
         int esPort = Integer.parseInt(getEnv("ES_PORT", "9200"));
