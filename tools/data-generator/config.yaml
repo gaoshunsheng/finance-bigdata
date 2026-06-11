@@ -42,6 +42,7 @@ hbase:
 decision:
   url: "http://localhost:18080/api/v1/decision"
   strategy_id: "STR_CREDIT_V3"
+  auth_secret: "change-me-in-production"   # Bearer token for decision-server
 
 elasticsearch:
   host: "localhost"

@@ -3,6 +3,8 @@ services:
   decision-server:
     ports:
       - "18080:8080"
+    environment:
+      DECISION_ENGINE_RATE_LIMIT_ENABLED: "false"    # 测试环境禁用限流
 
   decision-admin:
     ports:

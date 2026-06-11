@@ -69,8 +69,13 @@ class HealthChecker:
     def _check_decision_server(self):
         decision_cfg = self.cfg.get("decision", {})
         url = decision_cfg.get("url", "http://localhost:18080/api/v1/decision")
+        auth_secret = decision_cfg.get("auth_secret", "")
         try:
-            resp = httpx.get(f"{url}/health", timeout=5.0)
+            headers = {}
+            if auth_secret:
+                headers["Authorization"] = f"Bearer {auth_secret}"
+            # /health endpoint is excluded from auth, but try anyway
+            resp = httpx.get(f"{url}/health", timeout=5.0, headers=headers)
             if resp.status_code == 200:
                 print(f"✓ decision-server 健康: {url}/health")
             else:
@@ -271,6 +276,10 @@ class DecisionRunner:
         self.retry_max = self.runner_cfg.get("retry_max", 3)
         self.retry_backoff = self.runner_cfg.get("retry_backoff", [1, 2, 4])
         self.timeout = self.runner_cfg.get("request_timeout", 10)
+        # Auth token
+        self.auth_token = self.decision_cfg.get("auth_secret", "")
+        # Client-side rate limiting delay (seconds between requests per thread)
+        self.request_delay = self.runner_cfg.get("request_delay", 0.05)
 
     def run_batch(self, sample: int = None, concurrency: int = None):
         """批量模式：遍历全部贷款申请记录。"""
@@ -327,19 +336,32 @@ class DecisionRunner:
 
     def _execute_one(self, loan: dict, customer: dict, index: int):
         """执行单条决策 (含重试)。"""
+        # Client-side throttling to avoid server rate limit
+        if self.request_delay > 0:
+            time.sleep(self.request_delay)
         request = self.builder.build_from_row(loan, customer, seed=index)
         base_url = self.decision_cfg.get("url", "http://localhost:18080/api/v1/decision")
 
         last_error = None
         for attempt in range(self.retry_max + 1):
             try:
+                headers = {"Content-Type": "application/json"}
+                if self.auth_token:
+                    headers["Authorization"] = f"Bearer {self.auth_token}"
                 with httpx.Client(timeout=self.timeout) as client:
-                    resp = client.post(f"{base_url}/execute", json=request)
+                    resp = client.post(f"{base_url}/execute", json=request, headers=headers)
 
                 if resp.status_code == 200:
                     result = resp.json()
                     self._collect_result(request, result, index)
                     return
+                elif resp.status_code == 429:
+                    last_error = f"HTTP 429: {resp.text[:100]}"
+                    # Extra backoff for rate limit
+                    import random
+                    wait = self.retry_backoff[min(attempt, len(self.retry_backoff) - 1)] + random.uniform(0.5, 2.0)
+                    time.sleep(wait)
+                    continue
                 else:
                     last_error = f"HTTP {resp.status_code}: {resp.text[:100]}"
             except Exception as e:

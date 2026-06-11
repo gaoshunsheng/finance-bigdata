@@ -54,6 +54,7 @@ def _apply_env_overrides(cfg: dict) -> dict:
         "HBASE_ZK_QUORUM": ("hbase", "zk_quorum"),
         "HBASE_ZK_PORT": ("hbase", "zk_port"),
         "DECISION_URL": ("decision", "url"),
+        "DECISION_AUTH_SECRET": ("decision", "auth_secret"),
         "ES_HOST": ("elasticsearch", "host"),
         "ES_PORT": ("elasticsearch", "port"),
         "HDFS_NAMENODE_URL": ("hdfs", "namenode_url"),
