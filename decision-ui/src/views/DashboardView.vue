@@ -109,16 +109,16 @@ async function loadStats() {
     ])
 
     if (rules.status === 'fulfilled' && rules.value) {
-      stats.rules = rules.value.total ?? (rules.value as any).length ?? 0
+      stats.rules = (rules.value as any).length ?? 0
     }
     if (scorecards.status === 'fulfilled' && scorecards.value) {
-      stats.scorecards = scorecards.value.total ?? (scorecards.value as any).length ?? 0
+      stats.scorecards = (scorecards.value as any).length ?? 0
     }
     if (tables.status === 'fulfilled' && tables.value) {
-      stats.tables = tables.value.total ?? (tables.value as any).length ?? 0
+      stats.tables = (tables.value as any).length ?? 0
     }
     if (flows.status === 'fulfilled' && flows.value) {
-      stats.flows = flows.value.total ?? (flows.value as any).length ?? 0
+      stats.flows = (flows.value as any).length ?? 0
     }
   } catch {
     // Silently keep zeros on error

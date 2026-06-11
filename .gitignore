@@ -14,3 +14,4 @@ model-platform/app/storage/
 *.pickle
 .worktrees/
 worktrees/
+.gstack/

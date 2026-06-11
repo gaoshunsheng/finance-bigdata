@@ -48,14 +48,14 @@ public class DecisionLogController {
      */
     @GetMapping
     public ResponseEntity<ApiResponse<Map<String, Object>>> list(
-            @RequestParam(required = false) String operator,
-            @RequestParam(required = false) String action,
-            @RequestParam(required = false) String targetType,
-            @RequestParam(required = false) String targetId,
-            @RequestParam(required = false) String startDate,
-            @RequestParam(required = false) String endDate,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(value = "operator", required = false) String operator,
+            @RequestParam(value = "action", required = false) String action,
+            @RequestParam(value = "targetType", required = false) String targetType,
+            @RequestParam(value = "targetId", required = false) String targetId,
+            @RequestParam(value = "startDate", required = false) String startDate,
+            @RequestParam(value = "endDate", required = false) String endDate,
+            @RequestParam(value = "page", defaultValue = "1") int page,
+            @RequestParam(value = "size", defaultValue = "20") int size) {
 
         Map<String, Object> params = new java.util.LinkedHashMap<>();
         if (operator != null) params.put("operator", operator);
@@ -87,8 +87,8 @@ public class DecisionLogController {
      */
     @GetMapping("/stats")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getStats(
-            @RequestParam(required = false) String startDate,
-            @RequestParam(required = false) String endDate) {
+            @RequestParam(value = "startDate", required = false) String startDate,
+            @RequestParam(value = "endDate", required = false) String endDate) {
 
         LocalDateTime end = endDate != null
             ? LocalDateTime.parse(endDate)

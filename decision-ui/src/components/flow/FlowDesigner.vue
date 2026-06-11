@@ -61,23 +61,24 @@
                 {{ nodeTypes.find(n => n.type === selectedNode!.type)?.label }}
               </a-tag>
             </a-form-item>
-            <a-form-item v-if="selectedNode!.type === 'RULE_SET'" label="规则集ID">
-              <a-input v-model:value="selectedNode!.config.ruleId" @change="onNodePropChange" placeholder="关联规则集ID" />
+            <a-form-item v-if="selectedNode!.type === 'RULE_SET'" label="选择规则集">
+              <a-select v-model:value="selectedNode!.config.ruleSetId" @change="onNodePropChange" placeholder="选择规则集" :options="ruleOptions" />
             </a-form-item>
-            <a-form-item v-if="selectedNode!.type === 'SCORECARD'" label="评分卡ID">
-              <a-input v-model:value="selectedNode!.config.scorecardId" @change="onNodePropChange" placeholder="关联评分卡ID" />
+            <a-form-item v-if="selectedNode!.type === 'SCORECARD'" label="选择评分卡">
+              <a-select v-model:value="selectedNode!.config.scorecardId" @change="onNodePropChange" placeholder="选择评分卡" :options="scorecardOptions" />
             </a-form-item>
-            <a-form-item v-if="selectedNode!.type === 'MODEL'" label="模型ID">
-              <a-input v-model:value="selectedNode!.config.modelId" @change="onNodePropChange" placeholder="关联模型ID" />
+            <a-form-item v-if="selectedNode!.type === 'DECISION'" label="选择决策表">
+              <a-select v-model:value="selectedNode!.config.tableId" @change="onNodePropChange" placeholder="选择决策表" :options="tableOptions" />
             </a-form-item>
-            <a-form-item v-if="selectedNode!.type === 'AB_SPLIT'" label="实验ID">
-              <a-input v-model:value="selectedNode!.config.experimentId" @change="onNodePropChange" placeholder="关联实验ID" />
-            </a-form-item>
-            <a-form-item v-if="selectedNode!.type === 'SUB_FLOW'" label="子流程ID">
-              <a-input v-model:value="selectedNode!.config.flowId" @change="onNodePropChange" placeholder="关联子流程ID" />
+            <a-form-item v-if="selectedNode!.type === 'AB_SPLIT'" label="选择实验">
+              <a-select v-model:value="selectedNode!.config.experimentId" @change="onNodePropChange" placeholder="选择实验" :options="experimentOptions" />
             </a-form-item>
             <a-form-item v-if="selectedNode!.type === 'ACTION'" label="动作配置">
-              <a-textarea v-model:value="selectedNode!.config.actionJson" @change="onNodePropChange" :rows="3" placeholder='{"type": "OUTPUT", "result": "REJECT"}' />
+              <a-select v-model:value="selectedNode!.config.action" @change="onNodePropChange" placeholder="选择动作">
+                <a-select-option value="PASS">通过</a-select-option>
+                <a-select-option value="REJECT">拒绝</a-select-option>
+                <a-select-option value="REVIEW">人工复核</a-select-option>
+              </a-select>
             </a-form-item>
             <a-button size="small" danger block @click="deleteSelectedNode">删除节点</a-button>
           </a-form>
@@ -191,7 +192,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onBeforeUnmount } from 'vue'
+import { ref, reactive, watch, onMounted, onBeforeUnmount } from 'vue'
 import {
   CheckCircleOutlined,
   LayoutOutlined,
@@ -201,6 +202,7 @@ import {
 import { message } from 'ant-design-vue'
 import type { FlowNode, FlowEdge, FlowModel, NodeType } from '@/types/flow'
 import { nodeTypeLabel } from '@/utils'
+import { listRules, listScorecards, listTables, listExperiments } from '@/api/admin'
 
 const props = defineProps<{ modelValue?: FlowModel }>()
 const emit = defineEmits<{ (e: 'update:modelValue', val: FlowModel): void }>()
@@ -230,7 +232,7 @@ const nodeTypes: Array<{ type: NodeType; label: string; color: string }> = [
   { type: 'RULE_SET', label: '规则集', color: '#fa8c16' },
   { type: 'SCORECARD', label: '评分卡', color: '#722ed1' },
   { type: 'MODEL', label: '模型', color: '#13c2c2' },
-  { type: 'DECISION', label: '决策', color: '#eb2f96' },
+  { type: 'DECISION', label: '决策表', color: '#eb2f96' },
   { type: 'AB_SPLIT', label: 'AB分流', color: '#2f54eb' },
   { type: 'ACTION', label: '动作', color: '#f5222d' },
   { type: 'SUB_FLOW', label: '子流程', color: '#a0d911' },
@@ -370,12 +372,37 @@ function deleteSelectedNode() {
   const id = selectedNode.value.id
   const idx = nodes.findIndex(n => n.id === id)
   if (idx >= 0) nodes.splice(idx, 1)
-  // 移除关联边
   for (let i = edges.length - 1; i >= 0; i--) {
     if (edges[i].source === id || edges[i].target === id) edges.splice(i, 1)
   }
   selectedNode.value = null
   selectedNodeId.value = null
+}
+
+// API-driven options for node config selects
+const ruleOptions = ref<{label:string,value:string}[]>([])
+const scorecardOptions = ref<{label:string,value:string}[]>([])
+const tableOptions = ref<{label:string,value:string}[]>([])
+const experimentOptions = ref<{label:string,value:string}[]>([])
+
+async function loadNodeOptions() {
+  try {
+    const [rules, scorecards, tables, experiments] = await Promise.allSettled([
+      listRules({}), listScorecards({}), listTables({}), listExperiments({}),
+    ])
+    if (rules.status==='fulfilled' && Array.isArray(rules.value)) {
+      ruleOptions.value = rules.value.map((r:any) => ({label:`${r.name} (${r.id})`, value:r.id}))
+    }
+    if (scorecards.status==='fulfilled' && Array.isArray(scorecards.value)) {
+      scorecardOptions.value = scorecards.value.map((s:any) => ({label:`${s.name} (${s.id})`, value:s.id}))
+    }
+    if (tables.status==='fulfilled' && Array.isArray(tables.value)) {
+      tableOptions.value = tables.value.map((t:any) => ({label:`${t.name} (${t.id})`, value:t.id}))
+    }
+    if (experiments.status==='fulfilled' && Array.isArray(experiments.value)) {
+      experimentOptions.value = experiments.value.map((e:any) => ({label:`${e.name} (${e.id})`, value:e.id}))
+    }
+  } catch { /* options remain empty */ }
 }
 
 function onNodePropChange() {
@@ -457,22 +484,35 @@ function exportFlow() {
   message.success('已导出决策流')
 }
 
-// 事件监听
-onMounted(() => {
-  window.addEventListener('mousemove', onMouseMove)
-  window.addEventListener('mouseup', onMouseUp)
+let initialized = false
 
-  // 加载初始数据
-  if (props.modelValue) {
-    nodes.push(...props.modelValue.nodes)
-    edges.push(...props.modelValue.edges)
-  } else {
+function loadModel(model?: FlowModel) {
+  nodes.length = 0
+  edges.length = 0
+  if (model && model.nodes?.length) {
+    nodes.push(...model.nodes.map(n => ({ ...n, position: { ...n.position } })))
+    edges.push(...model.edges.map(e => ({ ...e })))
+  } else if (!initialized) {
     // 默认添加开始和结束节点
     nodes.push(
       { id: 'start', type: 'START', name: '开始', position: { x: 80, y: 200 }, config: {} },
       { id: 'end', type: 'END', name: '结束', position: { x: 600, y: 200 }, config: {} },
     )
   }
+  initialized = true
+}
+
+// 事件监听
+onMounted(() => {
+  window.addEventListener('mousemove', onMouseMove)
+  window.addEventListener('mouseup', onMouseUp)
+  loadModel(props.modelValue)
+  loadNodeOptions()
+})
+
+// 异步加载完成后更新画布
+watch(() => props.modelValue, (val) => {
+  loadModel(val)
 })
 
 onBeforeUnmount(() => {

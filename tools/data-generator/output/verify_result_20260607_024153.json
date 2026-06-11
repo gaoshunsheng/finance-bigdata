@@ -1,0 +1,26 @@
+{
+  "generated_at": "2026-06-07 02:41:53",
+  "summary": {
+    "pass": 0,
+    "warn": 0,
+    "fail": 0,
+    "skip": 1
+  },
+  "checkpoints": [
+    {
+      "checkpoint": "CP3",
+      "name": "Spark ETL (ODS→DWD→DWS→ADS)",
+      "status": "SKIP",
+      "duration_ms": 2,
+      "details": [
+        {
+          "name": "Hive 连接",
+          "status": "SKIP",
+          "expected": "",
+          "actual": "",
+          "message": "无法连接 HiveServer2 (localhost:10000)"
+        }
+      ]
+    }
+  ]
+}

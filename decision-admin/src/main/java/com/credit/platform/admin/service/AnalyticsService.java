@@ -176,6 +176,67 @@ public class AnalyticsService {
     }
 
     /**
+     * 概览统计 — 今日决策总量、通过率、拒绝率、P99 耗时。
+     */
+    public Map<String, Object> getOverview() {
+        Map<String, Object> overview = new LinkedHashMap<>();
+        LocalDateTime today = LocalDateTime.now().withHour(0).withMinute(0).withSecond(0).withNano(0);
+        LocalDateTime now = LocalDateTime.now();
+
+        // 今日决策总量
+        String totalSql = "SELECT COUNT(*) AS total FROM audit_log WHERE operated_at >= ?";
+        List<Map<String, Object>> totalRows = jdbcTemplate.queryForList(totalSql, today);
+        long total = totalRows.isEmpty() ? 0 : ((Number) totalRows.get(0).get("total")).longValue();
+        overview.put("total", total);
+
+        // 通过率 & 拒绝率
+        String rateSql = "SELECT " +
+            "IFNULL(SUM(CASE WHEN action = 'APPROVE' THEN 1 ELSE 0 END), 0) AS approved, " +
+            "IFNULL(SUM(CASE WHEN action = 'REJECT' THEN 1 ELSE 0 END), 0) AS rejected " +
+            "FROM audit_log WHERE operated_at >= ? AND action IN ('APPROVE', 'REJECT')";
+        List<Map<String, Object>> rateRows = jdbcTemplate.queryForList(rateSql, today);
+        if (!rateRows.isEmpty()) {
+            Object approvedObj = rateRows.get(0).get("approved");
+            Object rejectedObj = rateRows.get(0).get("rejected");
+            long approved = approvedObj != null ? ((Number) approvedObj).longValue() : 0;
+            long rejected = rejectedObj != null ? ((Number) rejectedObj).longValue() : 0;
+            long rateTotal = approved + rejected;
+            overview.put("passRate", rateTotal > 0 ? Math.round((double) approved / rateTotal * 10000) / 100.0 : 0);
+            overview.put("rejectRate", rateTotal > 0 ? Math.round((double) rejected / rateTotal * 10000) / 100.0 : 0);
+        } else {
+            overview.put("passRate", 0);
+            overview.put("rejectRate", 0);
+        }
+
+        // P99 耗时 (基于 audit_log 的 after_snapshot 解析 durationMs)
+        String p99Sql = "SELECT after_snapshot FROM audit_log " +
+            "WHERE operated_at >= ? AND after_snapshot IS NOT NULL AND after_snapshot LIKE '%durationMs%'";
+        List<Map<String, Object>> p99Rows = jdbcTemplate.queryForList(p99Sql, today);
+        List<Double> durations = new ArrayList<>();
+        java.util.regex.Pattern durPattern = java.util.regex.Pattern.compile(
+            "\"durationMs\"\\s*:\\s*([0-9]+\\.?[0-9]*)");
+        for (Map<String, Object> row : p99Rows) {
+            String snapshot = (String) row.get("after_snapshot");
+            if (snapshot == null) continue;
+            java.util.regex.Matcher m = durPattern.matcher(snapshot);
+            if (m.find()) {
+                try { durations.add(Double.parseDouble(m.group(1))); } catch (NumberFormatException ignored) {}
+            }
+        }
+        if (!durations.isEmpty()) {
+            Collections.sort(durations);
+            int p99Idx = (int) Math.ceil(durations.size() * 0.99) - 1;
+            overview.put("p99Latency", Math.round(durations.get(Math.max(0, p99Idx))));
+        } else {
+            overview.put("p99Latency", 0);
+        }
+
+        log.debug("概览统计: total={}, passRate={}, rejectRate={}, p99Latency={}",
+            overview.get("total"), overview.get("passRate"), overview.get("rejectRate"), overview.get("p99Latency"));
+        return overview;
+    }
+
+    /**
      * 从 JSON snapshot 中提取 score 值。
      */
     private Double extractScore(String json) {

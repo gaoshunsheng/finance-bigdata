@@ -1,113 +1,45 @@
 <template>
-  <div>
-    <a-page-header title="发布中心" />
-
-    <a-tabs v-model:activeKey="activeTab">
-      <!-- 待审批 -->
-      <a-tab-pane key="pending" tab="待审批">
-        <template #tab>
-          待审批 <a-badge :count="pendingList.length" :offset="[6, -2]" />
-        </template>
-        <a-table :columns="pendingColumns" :data-source="pendingList" :pagination="{ pageSize: 20 }" row-key="id">
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'action'">
-              <a-space>
-                <a-popconfirm title="确认通过审批?" @confirm="handleApprove(record)">
-                  <a-button type="link" size="small" style="color: #52c41a">通过</a-button>
-                </a-popconfirm>
-                <a-button type="link" size="small" @click="openRejectModal(record)">驳回</a-button>
-                <a-button type="link" size="small" @click="handleDiff(record)">版本对比</a-button>
-              </a-space>
-            </template>
-          </template>
-          <template #emptyText><a-empty description="暂无待审批记录" /></template>
-        </a-table>
-      </a-tab-pane>
-
+  <div class="publish-center">
+    <a-row :gutter="16">
       <!-- 灰度发布 -->
-      <a-tab-pane key="grayscale" tab="灰度发布">
-        <a-alert
-          message="灰度发布支持按百分比逐步提升流量，建议步骤: 5% → 25% → 50% → 100%"
-          type="info"
-          show-icon
-          style="margin-bottom: 12px"
-        />
-        <a-table :columns="grayscaleColumns" :data-source="grayscaleList" :pagination="{ pageSize: 20 }" row-key="id">
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'percentage'">
-              <a-progress :percent="record.percentage" :size="'small'" :stroke-color="'#1677ff'" />
-            </template>
-            <template v-if="column.key === 'status'">
-              <a-tag :color="grayscaleStatusColor(record.status)">{{ record.status }}</a-tag>
-            </template>
-            <template v-if="column.key === 'action'">
-              <a-space>
-                <a-button type="link" size="small" @click="handleRampUp(record)" :disabled="record.status !== 'IN_PROGRESS'">
-                  提升
-                </a-button>
-                <a-button type="link" size="small" @click="handlePauseGrayscale(record)" :disabled="record.status !== 'IN_PROGRESS'">
-                  暂停
-                </a-button>
-                <a-button type="link" size="small" @click="handleResumeGrayscale(record)" :disabled="record.status !== 'PAUSED'">
-                  恢复
-                </a-button>
-                <a-popconfirm title="确认回滚? 灰度比例将归零" @confirm="handleRollback(record)">
-                  <a-button type="link" size="small" danger>回滚</a-button>
-                </a-popconfirm>
-              </a-space>
-            </template>
+      <a-col :span="12">
+        <a-card title="灰度发布" :bordered="false" :body-style="{ padding: 0 }">
+          <template #extra>
+            <a-button type="primary" size="small" @click="showGrayscaleModal = true">新建灰度发布</a-button>
           </template>
-          <template #emptyText><a-empty description="暂无灰度发布记录" /></template>
-        </a-table>
-      </a-tab-pane>
-
-      <!-- 版本对比 -->
-      <a-tab-pane key="diff" tab="版本对比">
-        <a-form layout="inline" style="margin-bottom: 16px">
-          <a-form-item label="目标类型">
-            <a-select v-model:value="diffForm.targetType" style="width: 120px">
-              <a-select-option value="RULE">规则</a-select-option>
-              <a-select-option value="SCORECARD">评分卡</a-select-option>
-              <a-select-option value="TABLE">决策表</a-select-option>
-              <a-select-option value="FLOW">决策流</a-select-option>
-            </a-select>
-          </a-form-item>
-          <a-form-item label="目标ID">
-            <a-input v-model:value="diffForm.targetId" placeholder="输入目标ID" style="width: 200px" />
-          </a-form-item>
-          <a-form-item>
-            <a-button type="primary" @click="loadDiff">查看差异</a-button>
-          </a-form-item>
-        </a-form>
-        <a-empty v-if="!diffData.length" description="选择目标后查看版本差异" />
-        <div v-else class="diff-list">
-          <div v-for="(d, i) in diffData" :key="i" :class="['diff-item', `diff-${d.type.toLowerCase()}`]">
-            <a-tag :color="diffTypeColor(d.type)">{{ d.type }}</a-tag>
-            <span class="diff-field">{{ d.field }}</span>
-            <span v-if="d.oldValue" class="diff-old">{{ d.oldValue }}</span>
-            <span v-if="d.newValue" class="diff-new">{{ d.newValue }}</span>
-          </div>
-        </div>
-      </a-tab-pane>
+          <a-table :columns="gsColumns" :data-source="grayscales" :loading="gsLoading" row-key="configId" size="middle" :pagination="false" />
+        </a-card>
+      </a-col>
 
       <!-- 发布历史 -->
-      <a-tab-pane key="history" tab="发布历史">
-        <a-table :columns="historyColumns" :data-source="historyList" :pagination="{ pageSize: 20 }" row-key="id">
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'status'">
-              <a-tag :color="statusColor(record.status)">{{ statusLabel(record.status) }}</a-tag>
-            </template>
-          </template>
-          <template #emptyText><a-empty description="暂无发布历史" /></template>
-        </a-table>
-      </a-tab-pane>
-    </a-tabs>
+      <a-col :span="12">
+        <a-card title="发布历史" :bordered="false" :body-style="{ padding: 0 }">
+          <a-table :columns="histColumns" :data-source="histories" :loading="histLoading" row-key="recordId" size="middle" :pagination="false" />
+        </a-card>
+      </a-col>
+    </a-row>
 
-    <!-- 驳回弹窗 -->
-    <a-modal v-model:open="rejectModalVisible" title="驳回审批" @ok="handleReject">
-      <a-form layout="vertical">
-        <a-form-item label="驳回原因" required>
-          <a-textarea v-model:value="rejectReason" :rows="3" placeholder="请输入驳回原因" />
+    <!-- 新建灰度发布弹窗 -->
+    <a-modal v-model:open="showGrayscaleModal" title="新建灰度发布" @ok="handleCreateGrayscale" @cancel="resetGrayscaleForm" :confirm-loading="creating">
+      <a-form :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
+        <a-form-item label="目标类型" required>
+          <a-select v-model:value="gsForm.targetType" placeholder="选择目标类型">
+            <a-select-option value="RULE">规则集</a-select-option>
+            <a-select-option value="SCORECARD">评分卡</a-select-option>
+            <a-select-option value="DECISION_TABLE">决策表</a-select-option>
+            <a-select-option value="DECISION_TREE">决策树</a-select-option>
+            <a-select-option value="FLOW">决策流</a-select-option>
+            <a-select-option value="VARIABLE">变量</a-select-option>
+          </a-select>
+        </a-form-item>
+        <a-form-item label="目标 ID" required>
+          <a-input v-model:value="gsForm.targetId" placeholder="如 RS_BLACKLIST" />
+        </a-form-item>
+        <a-form-item label="目标版本">
+          <a-input-number v-model:value="gsForm.targetVersion" :min="1" style="width: 100%" />
+        </a-form-item>
+        <a-form-item label="灰度比例" required>
+          <a-slider v-model:value="gsForm.percentage" :min="1" :max="100" :marks="{ 0: '0%', 25: '25%', 50: '50%', 75: '75%', 100: '100%' }" />
         </a-form-item>
       </a-form>
     </a-modal>
@@ -115,147 +47,135 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
-import { statusColor, statusLabel } from '@/utils'
+import { getAllGrayscaleConfigs, getAllApprovalRecords, startGrayscale } from '@/api/publish'
 
-const activeTab = ref('pending')
+/* ========== 灰度发布 ========== */
+interface GrayscaleRow {
+  configId: string
+  targetType: string
+  targetId: string
+  targetVersion: number
+  percentage: number
+  previousPercentage: number
+  operator: string
+  startedAt: string
+  updatedAt: string
+  grayscaleStatus: string
+}
 
-// --- 待审批 ---
-const pendingList = ref<any[]>([])
-const pendingColumns = [
-  { title: '目标名称', dataIndex: 'targetName', key: 'targetName' },
-  { title: '类型', dataIndex: 'targetType', key: 'targetType', width: 100 },
-  { title: '版本', dataIndex: 'version', key: 'version', width: 80 },
-  { title: '提交人', dataIndex: 'operator', key: 'operator', width: 100 },
-  { title: '提交时间', dataIndex: 'operatedAt', key: 'operatedAt', width: 180 },
-  { title: '操作', key: 'action', width: 220 },
+const grayscales = ref<GrayscaleRow[]>([])
+const gsLoading = ref(false)
+
+const gsColumns = [
+  { title: '目标类型', dataIndex: 'targetType', key: 'targetType', width: 100, customRender: ({ text }: any) => targetTypeLabel(text) },
+  { title: '目标 ID', dataIndex: 'targetId', key: 'targetId', width: 140, ellipsis: true },
+  { title: '版本', dataIndex: 'targetVersion', key: 'targetVersion', width: 60, align: 'center' as const },
+  { title: '当前比例', dataIndex: 'percentage', key: 'percentage', width: 90, customRender: ({ text }: any) => `${text}%` },
+  { title: '状态', dataIndex: 'grayscaleStatus', key: 'grayscaleStatus', width: 90 },
+  { title: '操作人', dataIndex: 'operator', key: 'operator', width: 90, ellipsis: true },
+  { title: '更新时间', dataIndex: 'updatedAt', key: 'updatedAt', width: 160 },
 ]
 
-function handleApprove(record: any) {
-  message.success(`已通过: ${record.targetName}`)
+function targetTypeLabel(t: string): string {
+  const m: Record<string, string> = { RULE: '规则集', SCORECARD: '评分卡', DECISION_TABLE: '决策表', DECISION_TREE: '决策树', FLOW: '决策流', VARIABLE: '变量' }
+  return m[t] || t
 }
 
-const rejectModalVisible = ref(false)
-const rejectReason = ref('')
-let rejectingRecord: any = null
-
-function openRejectModal(record: any) {
-  rejectingRecord = record
-  rejectReason.value = ''
-  rejectModalVisible.value = true
+function gsColor(s: string): string {
+  const m: Record<string, string> = { GRAYSCALE: 'processing', IN_PROGRESS: 'processing', RELEASED: 'success', FULL: 'success', NOT_STARTED: 'default', PAUSED: 'warning', ROLLED_BACK: 'error' }
+  return m[s] || 'default'
 }
 
-function handleReject() {
-  if (!rejectReason.value.trim()) {
-    message.warning('请输入驳回原因')
+async function fetchGrayscales() {
+  gsLoading.value = true
+  try {
+    grayscales.value = await getAllGrayscaleConfigs()
+  } catch (e: any) {
+    message.error('灰度数据加载失败')
+  } finally {
+    gsLoading.value = false
+  }
+}
+
+/* ========== 新建灰度发布 ========== */
+const showGrayscaleModal = ref(false)
+const creating = ref(false)
+const gsForm = ref({ targetType: 'RULE', targetId: '', targetVersion: 1, percentage: 10 })
+
+function resetGrayscaleForm() {
+  gsForm.value = { targetType: 'RULE', targetId: '', targetVersion: 1, percentage: 10 }
+}
+
+async function handleCreateGrayscale() {
+  if (!gsForm.value.targetId) {
+    message.warning('请输入目标 ID')
     return
   }
-  message.success(`已驳回: ${rejectingRecord?.targetName}`)
-  rejectModalVisible.value = false
+  creating.value = true
+  try {
+    await startGrayscale(gsForm.value.targetId, gsForm.value.targetType, gsForm.value.percentage)
+    message.success('灰度发布创建成功')
+    showGrayscaleModal.value = false
+    resetGrayscaleForm()
+    await fetchGrayscales()
+  } catch (e: any) {
+    message.error(e.message || '创建失败')
+  } finally {
+    creating.value = false
+  }
 }
 
-function handleDiff(record: any) {
-  activeTab.value = 'diff'
-  diffForm.targetId = record.targetId
-  diffForm.targetType = record.targetType
+/* ========== 发布历史 ========== */
+interface HistoryRow {
+  recordId: string
+  targetType: string
+  targetId: string
+  targetVersion: number
+  action: string
+  operator: string
+  comment?: string
+  operatedAt: string
 }
 
-// --- 灰度 ---
-const grayscaleList = ref<any[]>([])
-const grayscaleColumns = [
-  { title: '目标名称', dataIndex: 'targetName', key: 'targetName' },
-  { title: '类型', dataIndex: 'targetType', key: 'targetType', width: 100 },
-  { title: '灰度比例', key: 'percentage', width: 200 },
-  { title: '状态', key: 'status', width: 120 },
-  { title: '操作', key: 'action', width: 280 },
+const histories = ref<HistoryRow[]>([])
+const histLoading = ref(false)
+
+const histColumns = [
+  { title: '目标类型', dataIndex: 'targetType', key: 'targetType', width: 100, customRender: ({ text }: any) => targetTypeLabel(text) },
+  { title: '目标 ID', dataIndex: 'targetId', key: 'targetId', width: 140, ellipsis: true },
+  { title: '版本', dataIndex: 'targetVersion', key: 'targetVersion', width: 60, align: 'center' as const },
+  { title: '操作', dataIndex: 'action', key: 'action', width: 90, customRender: ({ text }: any) => actionLabel(text) },
+  { title: '操作人', dataIndex: 'operator', key: 'operator', width: 110, ellipsis: true },
+  { title: '备注', dataIndex: 'comment', key: 'comment', width: 180, ellipsis: true },
+  { title: '操作时间', dataIndex: 'operatedAt', key: 'operatedAt', width: 160 },
 ]
 
-function grayscaleStatusColor(status: string): string {
-  const map: Record<string, string> = {
-    NOT_STARTED: 'default',
-    IN_PROGRESS: 'processing',
-    FULL: 'success',
-    PAUSED: 'warning',
-    ROLLED_BACK: 'error',
-  }
-  return map[status] || 'default'
+function actionLabel(a: string): string {
+  const m: Record<string, string> = { SUBMIT: '提交审批', APPROVE: '审批通过', REJECT: '审批驳回', WITHDRAW: '撤回' }
+  return m[a] || a
 }
 
-function handleRampUp(record: any) {
-  const steps = [5, 25, 50, 100]
-  const next = steps.find(s => s > record.percentage)
-  if (next) {
-    record.percentage = next
-    message.success(`已提升到 ${next}%`)
-    if (next === 100) record.status = 'FULL'
+async function fetchHistories() {
+  histLoading.value = true
+  try {
+    histories.value = await getAllApprovalRecords()
+  } catch (e: any) {
+    message.error('历史数据加载失败')
+  } finally {
+    histLoading.value = false
   }
 }
 
-function handlePauseGrayscale(record: any) {
-  record.status = 'PAUSED'
-  message.info('灰度已暂停')
-}
-
-function handleResumeGrayscale(record: any) {
-  record.status = 'IN_PROGRESS'
-  message.info('灰度已恢复')
-}
-
-function handleRollback(record: any) {
-  record.percentage = 0
-  record.status = 'ROLLED_BACK'
-  message.warning('已回滚')
-}
-
-// --- 版本对比 ---
-const diffForm = reactive({ targetType: 'RULE', targetId: '' })
-const diffData = ref<Array<{ type: string; field: string; oldValue?: string; newValue?: string }>>([])
-
-function diffTypeColor(type: string): string {
-  const map: Record<string, string> = { ADDED: 'green', REMOVED: 'red', MODIFIED: 'orange', UNCHANGED: 'default' }
-  return map[type] || 'default'
-}
-
-function loadDiff() {
-  if (!diffForm.targetId) {
-    message.warning('请输入目标ID')
-    return
-  }
-  diffData.value = []
-  message.info('暂无版本数据 (需连接后端API)')
-}
-
-// --- 发布历史 ---
-const historyList = ref<any[]>([])
-const historyColumns = [
-  { title: '目标名称', dataIndex: 'targetName', key: 'targetName' },
-  { title: '类型', dataIndex: 'targetType', key: 'targetType', width: 100 },
-  { title: '版本', dataIndex: 'toVersion', key: 'toVersion', width: 80 },
-  { title: '状态', key: 'status', width: 100 },
-  { title: '操作人', dataIndex: 'operator', key: 'operator', width: 100 },
-  { title: '操作时间', dataIndex: 'operatedAt', key: 'operatedAt', width: 180 },
-]
+onMounted(() => {
+  fetchGrayscales()
+  fetchHistories()
+})
 </script>
 
 <style scoped>
-.diff-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.diff-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
-  border-radius: 4px;
-  font-size: 13px;
-}
-.diff-added { background: #f6ffed; }
-.diff-removed { background: #fff2f0; }
-.diff-modified { background: #fffbe6; }
-.diff-field { font-family: monospace; font-weight: 500; }
-.diff-old { text-decoration: line-through; color: #ff4d4f; }
-.diff-new { color: #52c41a; font-weight: 500; }
+.publish-center { padding: 12px; }
+.ant-card { margin-bottom: 16px; }
+.ant-table { font-size: 13px; }
 </style>

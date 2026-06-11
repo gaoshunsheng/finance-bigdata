@@ -63,8 +63,10 @@ public class GrayscaleConfig {
         NOT_STARTED("未开始"),
         /** 灰度中 */
         IN_PROGRESS("灰度中"),
+        GRAYSCALE("灰度中"),
         /** 已全量 */
         FULL("已全量"),
+        RELEASED("已全量"),
         /** 已暂停 */
         PAUSED("已暂停"),
         /** 已回滚 */

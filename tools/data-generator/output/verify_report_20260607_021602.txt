@@ -1,0 +1,61 @@
+════════════════════════════════════════════════════════════
+  全链路数据验证报告
+  时间: 2026-06-07 02:16:02
+════════════════════════════════════════════════════════════
+
+  ⚠️ CP1: MySQL 源数据                      WARN
+     耗时: 310ms
+    ✅ customer_info 行数: 10,005 行
+    ✅ loan_application 行数: 期望: 26869, 实际: 27306
+    ✅ repayment_record 行数: 期望: 75484, 实际: 75818
+    ✅ credit_report 行数: 期望: 45462, 实际: 45686
+    ✅ 外键完整性 (loan→customer): 0 条孤立记录
+    ✅ 外键完整性 (repay→customer): 0 条孤立记录
+    ⚠️ 时序正确性: 期望: 0, 实际: 17
+    ✅ 值域检查: annual_income/loan_amount/overdue_days 值域正常
+
+  ✅ CP2: DataX 同步 (HDFS/ODS)            PASS
+     耗时: 74ms
+    ✅ ods_customer_info 分区: 1 个分区
+    ✅ ods_loan_application 分区: 1 个分区
+    ✅ ods_repayment_record 分区: 1 个分区
+
+  ⏭️ CP3: Spark ETL (ODS→DWD→DWS→ADS)    SKIP
+     耗时: 13ms
+    ⏭️ Hive 连接: 无法连接 HiveServer2 (finance-hive-server:10000)
+
+  ⚠️ CP4: Canal CDC (Kafka)              WARN
+     耗时: 20635ms
+    ⚠️ 长名 topic: cdc_credit_platform_customer_info: 不存在 (Canal 可能未启动)
+    ⚠️ 长名 topic: cdc_credit_platform_loan_application: 不存在 (Canal 可能未启动)
+    ⚠️ 长名 topic: cdc_credit_platform_repayment_record: 不存在 (Canal 可能未启动)
+    ⚠️ 长名 topic: cdc_credit_platform_credit_report: 不存在 (Canal 可能未启动)
+    ✅ 短名 topic: cdc_credit_query: 存在
+    ✅ 短名 topic: cdc_overdue_event: 存在
+    ✅ 短名 topic: application_event: 存在
+    ✅ 短名 topic: transaction_event: 存在
+    ✅ 扁平 JSON (cdc_credit_query): customerId=CUST_08252
+    ✅ 扁平 JSON (cdc_overdue_event): customerId=CUST_07696
+    ✅ 扁平 JSON (application_event): customerId=CUST_04756
+    ✅ 扁平 JSON (transaction_event): customerId=CUST_04756
+
+  ⚠️ CP5: Flink 实时特征 (Redis + HBase)     WARN
+     耗时: 81ms
+    ✅ Redis 连接: redis:6379
+    ⚠️ Redis 特征: credit_query_3m: 期望: 有数据, 实际: 无数据
+    ⚠️ Redis 特征: overdue_6m: 期望: 有数据, 实际: 无数据
+    ⚠️ Redis 特征: apply_freq_1m: 期望: 有数据, 实际: 无数据
+    ⚠️ Redis 特征: transaction_summary_1h: 期望: 有数据, 实际: 无数据
+    ⏭️ HBase 检查: 连接失败: TTransportException(type=4, message='TSocket read 0 bytes')
+
+  ⚠️ CP6: 决策引擎 (API + ES)                WARN
+     耗时: 45ms
+    ⚠️ API 健康检查: {"error":"TOO_MANY_REQUESTS","message":"Global rate limit exceeded"}
+    ⚠️ 决策请求测试: {"error":"TOO_MANY_REQUESTS","message":"Global rate limit exceeded"}
+    ✅ ES 连接: finance-elasticsearch:9200
+    ✅ ES 决策日志: decision-log-2026.06 有 4 条文档
+
+════════════════════════════════════════════════════════════
+  总结: 1 PASS, 4 WARN, 0 FAIL, 1 SKIP
+  总耗时: 21.2s
+════════════════════════════════════════════════════════════

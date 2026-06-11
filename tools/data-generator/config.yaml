@@ -69,3 +69,85 @@ generation:
     normal: 0.30
     high_risk: 0.20
     anomaly: 0.10
+
+# ============================================================================
+# 决策引擎种子数据生成参数
+# ============================================================================
+decision_seed:
+  # 评分卡基准参数
+  scorecard:
+    credit_a:
+      initial_score: 500
+      cutoff_reject: 500      # <500: REJECT
+      cutoff_review: 550      # 500-549: REVIEW, >=550: PASS
+    credit_b:
+      initial_score: 0
+      cutoff_reject: 300
+      cutoff_review: 350
+    credit_c:
+      initial_score: 0
+      cutoff_reject: 250
+      cutoff_review: 300
+
+  # 准入阈值
+  eligibility:
+    age_min: 22
+    age_max: 60
+    income_min: 3000          # 最低月收入
+    credit_query_max: 6       # 最大征信查询次数 (近3月)
+    debt_ratio_max: 0.70      # 最大负债率
+
+  # 反欺诈阈值
+  blacklist:
+    multi_loan_threshold: 5   # 多头借贷次数阈值
+
+  # 额度矩阵 (元)
+  loan_amount:
+    grade_a_max: 500000       # A级客户最大额度
+    grade_b_max: 300000
+    grade_c_max: 100000
+    grade_d_max: 0            # D级直接拒贷
+    product_p001_max: 500000  # 消费贷上限
+    product_p002_max: 2000000 # 经营贷上限
+    product_p003_max: 5000000 # 房贷上限
+
+  # 定价矩阵 (年化利率 %)
+  pricing:
+    grade_a_rate: 6.0         # A级基准利率
+    grade_b_rate: 9.0
+    grade_c_rate: 12.0
+    grade_d_rate: 18.0
+    short_term_discount: -0.5 # 短期 (≤12月) 优惠
+    long_term_premium: 2.0    # 长期 (>36月) 上浮
+    guarantee_discount: -1.0  # 有担保优惠
+
+  # 实验流量比例
+  experiment:
+    credit_strategy:
+      control_ratio: 0.5
+      experiment_ratio: 0.5
+    pricing_model:
+      control_ratio: 0.7
+      experiment_ratio: 0.3
+
+  # 灰度上线时间线 (北京时间)
+  grayscale:
+    blacklist:
+      start_pct: 10
+      expand_pct: 50
+      full_pct: 100
+      start_time: "2026-06-01 10:00:00"
+      expand_time: "2026-06-02 14:00:00"
+      full_time: "2026-06-03 18:00:00"
+
+# ============================================================================
+# 端到端执行器参数
+# ============================================================================
+decision_runner:
+  default_strategy: "FLOW_CREDIT_MAIN"
+  default_channel: "APP"
+  concurrency: 4            # 默认并发度
+  retry_max: 3              # 最大重试次数
+  retry_backoff: [1, 2, 4]  # 退避间隔 (秒)
+  request_timeout: 10       # 单次请求超时 (秒)
+  es_batch_size: 100        # ES 批量写入大小

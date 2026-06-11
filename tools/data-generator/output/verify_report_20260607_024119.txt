@@ -1,0 +1,24 @@
+════════════════════════════════════════════════════════════
+  全链路数据验证报告
+  时间: 2026-06-07 02:41:19
+════════════════════════════════════════════════════════════
+
+  ⚠️ CP4: Canal CDC (Kafka)              WARN
+     耗时: 20828ms
+    ⚠️ 长名 topic: cdc_credit_platform_customer_info: 不存在 (Canal 可能未启动)
+    ⚠️ 长名 topic: cdc_credit_platform_loan_application: 不存在 (Canal 可能未启动)
+    ⚠️ 长名 topic: cdc_credit_platform_repayment_record: 不存在 (Canal 可能未启动)
+    ⚠️ 长名 topic: cdc_credit_platform_credit_report: 不存在 (Canal 可能未启动)
+    ✅ 短名 topic: cdc_credit_query: 存在
+    ✅ 短名 topic: cdc_overdue_event: 存在
+    ✅ 短名 topic: application_event: 存在
+    ✅ 短名 topic: transaction_event: 存在
+    ✅ 扁平 JSON (cdc_credit_query): customerId=CUST_08252
+    ✅ 扁平 JSON (cdc_overdue_event): customerId=CUST_07696
+    ✅ 扁平 JSON (application_event): customerId=CUST_04756
+    ✅ 扁平 JSON (transaction_event): customerId=CUST_04756
+
+════════════════════════════════════════════════════════════
+  总结: 0 PASS, 1 WARN, 0 FAIL, 0 SKIP
+  总耗时: 20.8s
+════════════════════════════════════════════════════════════

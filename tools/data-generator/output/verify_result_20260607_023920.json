@@ -1,0 +1,75 @@
+{
+  "generated_at": "2026-06-07 02:39:20",
+  "summary": {
+    "pass": 0,
+    "warn": 1,
+    "fail": 0,
+    "skip": 0
+  },
+  "checkpoints": [
+    {
+      "checkpoint": "CP1",
+      "name": "MySQL 源数据",
+      "status": "WARN",
+      "duration_ms": 316,
+      "details": [
+        {
+          "name": "customer_info 行数",
+          "status": "PASS",
+          "expected": "",
+          "actual": "10105",
+          "message": "10,105 行"
+        },
+        {
+          "name": "loan_application 行数",
+          "status": "PASS",
+          "expected": "26869",
+          "actual": "27565",
+          "message": "27,565 行 (匹配)"
+        },
+        {
+          "name": "repayment_record 行数",
+          "status": "PASS",
+          "expected": "75484",
+          "actual": "77198",
+          "message": "77,198 行 (匹配)"
+        },
+        {
+          "name": "credit_report 行数",
+          "status": "PASS",
+          "expected": "45462",
+          "actual": "45686",
+          "message": "45,686 行 (匹配)"
+        },
+        {
+          "name": "外键完整性 (loan→customer)",
+          "status": "PASS",
+          "expected": "",
+          "actual": "",
+          "message": "0 条孤立记录"
+        },
+        {
+          "name": "外键完整性 (repay→customer)",
+          "status": "PASS",
+          "expected": "",
+          "actual": "",
+          "message": "0 条孤立记录"
+        },
+        {
+          "name": "时序正确性",
+          "status": "WARN",
+          "expected": "0",
+          "actual": "17",
+          "message": "17 条还款早于申请"
+        },
+        {
+          "name": "值域检查",
+          "status": "PASS",
+          "expected": "",
+          "actual": "",
+          "message": "annual_income/loan_amount/overdue_days 值域正常"
+        }
+      ]
+    }
+  ]
+}

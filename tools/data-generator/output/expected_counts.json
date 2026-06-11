@@ -1,0 +1,134 @@
+{
+  "generated_at": "2026-06-07 01:48:34",
+  "customer_count": 10000,
+  "loan_application_count": 26869,
+  "repayment_record_count": 75484,
+  "credit_report_count": 45462,
+  "tier_stats": {
+    "PREMIUM": {
+      "count": 4000,
+      "avg_income": 0.0,
+      "loan_count": 0,
+      "overdue_rate": 0.0
+    },
+    "NORMAL": {
+      "count": 3000,
+      "avg_income": 0.0,
+      "loan_count": 0,
+      "overdue_rate": 0.0
+    },
+    "HIGH_RISK": {
+      "count": 2000,
+      "avg_income": 0.0,
+      "loan_count": 0,
+      "overdue_rate": 0.0
+    },
+    "ANOMALY": {
+      "count": 1000,
+      "avg_income": 0.0,
+      "loan_count": 0,
+      "overdue_rate": 0.0
+    }
+  },
+  "monthly_distribution": [
+    {
+      "month": "2025-06",
+      "customer_count": 0,
+      "loan_count": 0,
+      "repayment_count": 0,
+      "credit_report_count": 1117
+    },
+    {
+      "month": "2025-07",
+      "customer_count": 0,
+      "loan_count": 2309,
+      "repayment_count": 0,
+      "credit_report_count": 3964
+    },
+    {
+      "month": "2025-08",
+      "customer_count": 0,
+      "loan_count": 2374,
+      "repayment_count": 1306,
+      "credit_report_count": 3959
+    },
+    {
+      "month": "2025-09",
+      "customer_count": 0,
+      "loan_count": 2177,
+      "repayment_count": 2879,
+      "credit_report_count": 3709
+    },
+    {
+      "month": "2025-10",
+      "customer_count": 0,
+      "loan_count": 2429,
+      "repayment_count": 4557,
+      "credit_report_count": 4080
+    },
+    {
+      "month": "2025-11",
+      "customer_count": 0,
+      "loan_count": 2203,
+      "repayment_count": 5768,
+      "credit_report_count": 3736
+    },
+    {
+      "month": "2025-12",
+      "customer_count": 0,
+      "loan_count": 2297,
+      "repayment_count": 7309,
+      "credit_report_count": 3875
+    },
+    {
+      "month": "2026-01",
+      "customer_count": 0,
+      "loan_count": 2353,
+      "repayment_count": 8634,
+      "credit_report_count": 3857
+    },
+    {
+      "month": "2026-02",
+      "customer_count": 0,
+      "loan_count": 2049,
+      "repayment_count": 8699,
+      "credit_report_count": 3501
+    },
+    {
+      "month": "2026-03",
+      "customer_count": 0,
+      "loan_count": 2217,
+      "repayment_count": 10448,
+      "credit_report_count": 3866
+    },
+    {
+      "month": "2026-04",
+      "customer_count": 0,
+      "loan_count": 2206,
+      "repayment_count": 11053,
+      "credit_report_count": 3683
+    },
+    {
+      "month": "2026-05",
+      "customer_count": 0,
+      "loan_count": 2323,
+      "repayment_count": 12341,
+      "credit_report_count": 3989
+    },
+    {
+      "month": "2026-06",
+      "customer_count": 0,
+      "loan_count": 1932,
+      "repayment_count": 2490,
+      "credit_report_count": 2126
+    }
+  ],
+  "overall_overdue_rate": 0.0,
+  "avg_loan_amount": 0.0,
+  "parameters": {
+    "customer_count": 10000,
+    "months": 12,
+    "start_date": "2025-07-01",
+    "seed": 42
+  }
+}

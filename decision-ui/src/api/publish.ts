@@ -68,7 +68,16 @@ export function versionDiffLatest(targetId: string, targetType: string) {
   return get(`/publish/${targetType}/${targetId}/diff-latest`)
 }
 
-// --- 发布历史 ---
+// --- 发布历史（单个实体） ---
 export function getPublishHistory(targetId: string, targetType: string): Promise<PublishRecord[]> {
   return get(`/publish/${targetType}/${targetId}/history`)
+}
+
+// --- 全局聚合查询（发布中心用） ---
+export function getAllGrayscaleConfigs(): Promise<GrayscaleConfig[]> {
+  return get('/publish/grayscale/list')
+}
+
+export function getAllApprovalRecords(): Promise<ApprovalRecord[]> {
+  return get('/publish/history')
 }

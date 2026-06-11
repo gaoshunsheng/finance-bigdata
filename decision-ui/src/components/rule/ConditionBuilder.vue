@@ -20,6 +20,7 @@
         :node="rootNode"
         :depth="0"
         :fields="fields"
+        :grouped-fields="groupedFields"
         @update:node="onRootUpdate"
         @remove="onRemoveRoot"
       />
@@ -46,6 +47,12 @@ export interface ConditionField {
   operators?: string[]
 }
 
+export interface FieldGroup {
+  layer: string
+  label: string
+  options: { value: string; label: string; dataType: string }[]
+}
+
 export interface ConditionTreeNode {
   id: string
   type: 'CONDITION' | 'AND' | 'OR' | 'NOT'
@@ -61,6 +68,7 @@ export interface ConditionTreeNode {
 const props = defineProps<{
   modelValue: ConditionTreeNode
   fields: ConditionField[]
+  groupedFields?: FieldGroup[]
 }>()
 
 const emit = defineEmits<{

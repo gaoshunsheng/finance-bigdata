@@ -1,0 +1,141 @@
+{
+  "generated_at": "2026-06-07 02:39:29",
+  "summary": {
+    "pass": 1,
+    "warn": 2,
+    "fail": 0,
+    "skip": 1
+  },
+  "checkpoints": [
+    {
+      "checkpoint": "CP2",
+      "name": "DataX 同步 (HDFS/ODS)",
+      "status": "PASS",
+      "duration_ms": 1404,
+      "details": [
+        {
+          "name": "ods_customer_info 分区",
+          "status": "PASS",
+          "expected": "",
+          "actual": "1",
+          "message": "1 个分区"
+        },
+        {
+          "name": "ods_loan_application 分区",
+          "status": "PASS",
+          "expected": "",
+          "actual": "1",
+          "message": "1 个分区"
+        },
+        {
+          "name": "ods_repayment_record 分区",
+          "status": "PASS",
+          "expected": "",
+          "actual": "1",
+          "message": "1 个分区"
+        }
+      ]
+    },
+    {
+      "checkpoint": "CP3",
+      "name": "Spark ETL (ODS→DWD→DWS→ADS)",
+      "status": "SKIP",
+      "duration_ms": 0,
+      "details": [
+        {
+          "name": "Hive 连接",
+          "status": "SKIP",
+          "expected": "",
+          "actual": "",
+          "message": "无法连接 HiveServer2 (localhost:10000)"
+        }
+      ]
+    },
+    {
+      "checkpoint": "CP5",
+      "name": "Flink 实时特征 (Redis + HBase)",
+      "status": "WARN",
+      "duration_ms": 238,
+      "details": [
+        {
+          "name": "Redis 连接",
+          "status": "PASS",
+          "expected": "",
+          "actual": "",
+          "message": "localhost:6379"
+        },
+        {
+          "name": "Redis 特征: credit_query_3m",
+          "status": "WARN",
+          "expected": "有数据",
+          "actual": "无数据",
+          "message": "未找到 feature:credit_query_3m:* (Flink 可能未运行或窗口未触发)"
+        },
+        {
+          "name": "Redis 特征: overdue_6m",
+          "status": "WARN",
+          "expected": "有数据",
+          "actual": "无数据",
+          "message": "未找到 feature:overdue_6m:* (Flink 可能未运行或窗口未触发)"
+        },
+        {
+          "name": "Redis 特征: apply_freq_1m",
+          "status": "WARN",
+          "expected": "有数据",
+          "actual": "无数据",
+          "message": "未找到 feature:apply_freq_1m:* (Flink 可能未运行或窗口未触发)"
+        },
+        {
+          "name": "Redis 特征: transaction_summary_1h",
+          "status": "WARN",
+          "expected": "有数据",
+          "actual": "无数据",
+          "message": "未找到 feature:transaction_summary_1h:* (Flink 可能未运行或窗口未触发)"
+        },
+        {
+          "name": "HBase 检查",
+          "status": "SKIP",
+          "expected": "",
+          "actual": "",
+          "message": "连接失败: TTransportException(type=4, message='TSocket read 0 bytes')"
+        }
+      ]
+    },
+    {
+      "checkpoint": "CP6",
+      "name": "决策引擎 (API + ES)",
+      "status": "WARN",
+      "duration_ms": 350,
+      "details": [
+        {
+          "name": "API 健康检查",
+          "status": "PASS",
+          "expected": "",
+          "actual": "",
+          "message": "HTTP 200"
+        },
+        {
+          "name": "决策请求测试",
+          "status": "WARN",
+          "expected": "",
+          "actual": "HTTP 401",
+          "message": "{\"error\":\"UNAUTHORIZED\",\"message\":\"Missing or invalid Authorization header\"}"
+        },
+        {
+          "name": "ES 连接",
+          "status": "PASS",
+          "expected": "",
+          "actual": "",
+          "message": "localhost:9200"
+        },
+        {
+          "name": "ES 决策日志",
+          "status": "PASS",
+          "expected": "",
+          "actual": "4",
+          "message": "decision-log-2026.06 有 4 条文档"
+        }
+      ]
+    }
+  ]
+}

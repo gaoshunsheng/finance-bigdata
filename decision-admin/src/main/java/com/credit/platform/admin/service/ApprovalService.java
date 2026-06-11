@@ -164,6 +164,15 @@ public class ApprovalService {
         return pending;
     }
 
+    /**
+     * 查询全部审批记录（发布历史）。
+     */
+    public List<ApprovalRecord> getAllApprovalRecords() {
+        return approvalRecordMapper.selectList(
+            new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<ApprovalRecord>()
+                .orderByDesc(ApprovalRecord::getOperatedAt));
+    }
+
     private String generateRecordId() {
         return "apr-" + UUID.randomUUID().toString().substring(0, 8);
     }

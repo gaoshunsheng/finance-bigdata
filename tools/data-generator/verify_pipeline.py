@@ -26,12 +26,32 @@ from loguru import logger
 
 from config import get_config, BEIJING_TZ, beijing_now
 from verifiers.base import CheckResult, CheckStatus
-from verifiers.mysql_check import MySQLCheck
-from verifiers.hdfs_check import HdfsCheck
-from verifiers.hive_check import HiveCheck
-from verifiers.canal_check import CanalCheck
-from verifiers.flink_check import FlinkCheck
-from verifiers.decision_check import DecisionCheck
+
+# 懒加载 verifier 模块，避免导入时触发有问题的依赖 (如 kafka-python on Python 3.13)
+
+
+def _get_verifier(cp: str):
+    """延迟导入 verifier 类，按需加载。"""
+    if cp == "CP1":
+        from verifiers.mysql_check import MySQLCheck
+        return MySQLCheck
+    elif cp == "CP2":
+        from verifiers.hdfs_check import HdfsCheck
+        return HdfsCheck
+    elif cp == "CP3":
+        from verifiers.hive_check import HiveCheck
+        return HiveCheck
+    elif cp == "CP4":
+        from verifiers.canal_check import CanalCheck
+        return CanalCheck
+    elif cp == "CP5":
+        from verifiers.flink_check import FlinkCheck
+        return FlinkCheck
+    elif cp == "CP6":
+        from verifiers.decision_check import DecisionCheck
+        return DecisionCheck
+    else:
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -149,12 +169,12 @@ def save_report(report_text: str, results: list[CheckResult], output_dir: str = 
 # ---------------------------------------------------------------------------
 
 ALL_CHECKPOINTS = {
-    "CP1": ("MySQL 源数据", MySQLCheck),
-    "CP2": ("DataX 同步", HdfsCheck),
-    "CP3": ("Spark ETL", HiveCheck),
-    "CP4": ("Canal CDC", CanalCheck),
-    "CP5": ("Flink 特征", FlinkCheck),
-    "CP6": ("决策引擎", DecisionCheck),
+    "CP1": "MySQL 源数据",
+    "CP2": "DataX 同步",
+    "CP3": "Spark ETL",
+    "CP4": "Canal CDC",
+    "CP5": "Flink 特征",
+    "CP6": "决策引擎",
 }
 
 
@@ -174,7 +194,12 @@ def run_verification(checkpoints: list[str], expected_path: str):
             logger.warning(f"未知的检查点: {cp}")
             continue
 
-        name, verifier_cls = ALL_CHECKPOINTS[cp]
+        name = ALL_CHECKPOINTS[cp]
+        verifier_cls = _get_verifier(cp)
+        if verifier_cls is None:
+            logger.warning(f"无法加载检查点: {cp}")
+            continue
+
         logger.info(f"\n{'─' * 40}")
         logger.info(f"  运行 {cp}: {name}...")
         logger.info(f"{'─' * 40}")

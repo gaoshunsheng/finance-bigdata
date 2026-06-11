@@ -1,0 +1,283 @@
+{
+  "generated_at": "2026-06-07 02:01:46",
+  "summary": {
+    "pass": 0,
+    "warn": 4,
+    "fail": 0,
+    "skip": 2
+  },
+  "checkpoints": [
+    {
+      "checkpoint": "CP1",
+      "name": "MySQL 源数据",
+      "status": "WARN",
+      "duration_ms": 333,
+      "details": [
+        {
+          "name": "customer_info 行数",
+          "status": "PASS",
+          "expected": "",
+          "actual": "10005",
+          "message": "10,005 行"
+        },
+        {
+          "name": "loan_application 行数",
+          "status": "PASS",
+          "expected": "26869",
+          "actual": "27306",
+          "message": "27,306 行 (匹配)"
+        },
+        {
+          "name": "repayment_record 行数",
+          "status": "PASS",
+          "expected": "75484",
+          "actual": "75818",
+          "message": "75,818 行 (匹配)"
+        },
+        {
+          "name": "credit_report 行数",
+          "status": "PASS",
+          "expected": "45462",
+          "actual": "45686",
+          "message": "45,686 行 (匹配)"
+        },
+        {
+          "name": "外键完整性 (loan→customer)",
+          "status": "PASS",
+          "expected": "",
+          "actual": "",
+          "message": "0 条孤立记录"
+        },
+        {
+          "name": "外键完整性 (repay→customer)",
+          "status": "PASS",
+          "expected": "",
+          "actual": "",
+          "message": "0 条孤立记录"
+        },
+        {
+          "name": "时序正确性",
+          "status": "WARN",
+          "expected": "0",
+          "actual": "17",
+          "message": "17 条还款早于申请"
+        },
+        {
+          "name": "值域检查",
+          "status": "PASS",
+          "expected": "",
+          "actual": "",
+          "message": "annual_income/loan_amount/overdue_days 值域正常"
+        }
+      ]
+    },
+    {
+      "checkpoint": "CP2",
+      "name": "DataX 同步 (HDFS/ODS)",
+      "status": "SKIP",
+      "duration_ms": 53,
+      "details": [
+        {
+          "name": "HDFS 连接",
+          "status": "SKIP",
+          "expected": "",
+          "actual": "",
+          "message": "HDFS 不可用 (WebHDFS 和 hdfs 命令均失败)"
+        }
+      ]
+    },
+    {
+      "checkpoint": "CP3",
+      "name": "Spark ETL (ODS→DWD→DWS→ADS)",
+      "status": "SKIP",
+      "duration_ms": 0,
+      "details": [
+        {
+          "name": "Hive 连接",
+          "status": "SKIP",
+          "expected": "",
+          "actual": "",
+          "message": "beeline 不可用，跳过 Hive 验证"
+        }
+      ]
+    },
+    {
+      "checkpoint": "CP4",
+      "name": "Canal CDC (Kafka)",
+      "status": "WARN",
+      "duration_ms": 20607,
+      "details": [
+        {
+          "name": "长名 topic: cdc_credit_platform_customer_info",
+          "status": "WARN",
+          "expected": "",
+          "actual": "",
+          "message": "不存在 (Canal 可能未启动)"
+        },
+        {
+          "name": "长名 topic: cdc_credit_platform_loan_application",
+          "status": "WARN",
+          "expected": "",
+          "actual": "",
+          "message": "不存在 (Canal 可能未启动)"
+        },
+        {
+          "name": "长名 topic: cdc_credit_platform_repayment_record",
+          "status": "WARN",
+          "expected": "",
+          "actual": "",
+          "message": "不存在 (Canal 可能未启动)"
+        },
+        {
+          "name": "长名 topic: cdc_credit_platform_credit_report",
+          "status": "WARN",
+          "expected": "",
+          "actual": "",
+          "message": "不存在 (Canal 可能未启动)"
+        },
+        {
+          "name": "短名 topic: cdc_credit_query",
+          "status": "PASS",
+          "expected": "",
+          "actual": "",
+          "message": "存在"
+        },
+        {
+          "name": "短名 topic: cdc_overdue_event",
+          "status": "PASS",
+          "expected": "",
+          "actual": "",
+          "message": "存在"
+        },
+        {
+          "name": "短名 topic: application_event",
+          "status": "PASS",
+          "expected": "",
+          "actual": "",
+          "message": "存在"
+        },
+        {
+          "name": "短名 topic: transaction_event",
+          "status": "PASS",
+          "expected": "",
+          "actual": "",
+          "message": "存在"
+        },
+        {
+          "name": "扁平 JSON (cdc_credit_query)",
+          "status": "PASS",
+          "expected": "",
+          "actual": "",
+          "message": "customerId=CUST_08252"
+        },
+        {
+          "name": "扁平 JSON (cdc_overdue_event)",
+          "status": "PASS",
+          "expected": "",
+          "actual": "",
+          "message": "customerId=CUST_07696"
+        },
+        {
+          "name": "扁平 JSON (application_event)",
+          "status": "PASS",
+          "expected": "",
+          "actual": "",
+          "message": "customerId=CUST_04756"
+        },
+        {
+          "name": "扁平 JSON (transaction_event)",
+          "status": "PASS",
+          "expected": "",
+          "actual": "",
+          "message": "customerId=CUST_04756"
+        }
+      ]
+    },
+    {
+      "checkpoint": "CP5",
+      "name": "Flink 实时特征 (Redis + HBase)",
+      "status": "WARN",
+      "duration_ms": 86,
+      "details": [
+        {
+          "name": "Redis 连接",
+          "status": "PASS",
+          "expected": "",
+          "actual": "",
+          "message": "redis:6379"
+        },
+        {
+          "name": "Redis 特征: credit_query_3m",
+          "status": "WARN",
+          "expected": "有数据",
+          "actual": "无数据",
+          "message": "未找到 feature:credit_query_3m:* (Flink 可能未运行或窗口未触发)"
+        },
+        {
+          "name": "Redis 特征: overdue_6m",
+          "status": "WARN",
+          "expected": "有数据",
+          "actual": "无数据",
+          "message": "未找到 feature:overdue_6m:* (Flink 可能未运行或窗口未触发)"
+        },
+        {
+          "name": "Redis 特征: apply_freq_1m",
+          "status": "WARN",
+          "expected": "有数据",
+          "actual": "无数据",
+          "message": "未找到 feature:apply_freq_1m:* (Flink 可能未运行或窗口未触发)"
+        },
+        {
+          "name": "Redis 特征: transaction_summary_1h",
+          "status": "WARN",
+          "expected": "有数据",
+          "actual": "无数据",
+          "message": "未找到 feature:transaction_summary_1h:* (Flink 可能未运行或窗口未触发)"
+        },
+        {
+          "name": "HBase 检查",
+          "status": "SKIP",
+          "expected": "",
+          "actual": "",
+          "message": "连接失败: TTransportException(type=4, message='TSocket read 0 bytes')"
+        }
+      ]
+    },
+    {
+      "checkpoint": "CP6",
+      "name": "决策引擎 (API + ES)",
+      "status": "WARN",
+      "duration_ms": 125,
+      "details": [
+        {
+          "name": "API 健康检查",
+          "status": "WARN",
+          "expected": "",
+          "actual": "HTTP 429",
+          "message": "{\"error\":\"TOO_MANY_REQUESTS\",\"message\":\"Global rate limit exceeded\"}"
+        },
+        {
+          "name": "决策请求测试",
+          "status": "WARN",
+          "expected": "",
+          "actual": "HTTP 429",
+          "message": "{\"error\":\"TOO_MANY_REQUESTS\",\"message\":\"Global rate limit exceeded\"}"
+        },
+        {
+          "name": "ES 连接",
+          "status": "PASS",
+          "expected": "",
+          "actual": "",
+          "message": "finance-elasticsearch:9200"
+        },
+        {
+          "name": "ES 决策日志",
+          "status": "PASS",
+          "expected": "",
+          "actual": "4",
+          "message": "decision-log-2026.06 有 4 条文档"
+        }
+      ]
+    }
+  ]
+}

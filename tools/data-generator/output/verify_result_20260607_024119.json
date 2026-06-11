@@ -1,0 +1,103 @@
+{
+  "generated_at": "2026-06-07 02:41:19",
+  "summary": {
+    "pass": 0,
+    "warn": 1,
+    "fail": 0,
+    "skip": 0
+  },
+  "checkpoints": [
+    {
+      "checkpoint": "CP4",
+      "name": "Canal CDC (Kafka)",
+      "status": "WARN",
+      "duration_ms": 20828,
+      "details": [
+        {
+          "name": "长名 topic: cdc_credit_platform_customer_info",
+          "status": "WARN",
+          "expected": "",
+          "actual": "",
+          "message": "不存在 (Canal 可能未启动)"
+        },
+        {
+          "name": "长名 topic: cdc_credit_platform_loan_application",
+          "status": "WARN",
+          "expected": "",
+          "actual": "",
+          "message": "不存在 (Canal 可能未启动)"
+        },
+        {
+          "name": "长名 topic: cdc_credit_platform_repayment_record",
+          "status": "WARN",
+          "expected": "",
+          "actual": "",
+          "message": "不存在 (Canal 可能未启动)"
+        },
+        {
+          "name": "长名 topic: cdc_credit_platform_credit_report",
+          "status": "WARN",
+          "expected": "",
+          "actual": "",
+          "message": "不存在 (Canal 可能未启动)"
+        },
+        {
+          "name": "短名 topic: cdc_credit_query",
+          "status": "PASS",
+          "expected": "",
+          "actual": "",
+          "message": "存在"
+        },
+        {
+          "name": "短名 topic: cdc_overdue_event",
+          "status": "PASS",
+          "expected": "",
+          "actual": "",
+          "message": "存在"
+        },
+        {
+          "name": "短名 topic: application_event",
+          "status": "PASS",
+          "expected": "",
+          "actual": "",
+          "message": "存在"
+        },
+        {
+          "name": "短名 topic: transaction_event",
+          "status": "PASS",
+          "expected": "",
+          "actual": "",
+          "message": "存在"
+        },
+        {
+          "name": "扁平 JSON (cdc_credit_query)",
+          "status": "PASS",
+          "expected": "",
+          "actual": "",
+          "message": "customerId=CUST_08252"
+        },
+        {
+          "name": "扁平 JSON (cdc_overdue_event)",
+          "status": "PASS",
+          "expected": "",
+          "actual": "",
+          "message": "customerId=CUST_07696"
+        },
+        {
+          "name": "扁平 JSON (application_event)",
+          "status": "PASS",
+          "expected": "",
+          "actual": "",
+          "message": "customerId=CUST_04756"
+        },
+        {
+          "name": "扁平 JSON (transaction_event)",
+          "status": "PASS",
+          "expected": "",
+          "actual": "",
+          "message": "customerId=CUST_04756"
+        }
+      ]
+    }
+  ]
+}

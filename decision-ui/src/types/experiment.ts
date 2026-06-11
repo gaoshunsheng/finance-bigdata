@@ -71,19 +71,23 @@ export interface PublishRecord {
 }
 
 export interface GrayscaleConfig {
+  configId: string
   targetId: string
   targetType: string
+  targetVersion: number
   percentage: number
-  status: 'NOT_STARTED' | 'IN_PROGRESS' | 'FULL' | 'PAUSED' | 'ROLLED_BACK'
-  startedAt?: string
-  startedBy?: string
+  previousPercentage: number
+  operator: string
+  startedAt: string
+  updatedAt: string
+  grayscaleStatus: 'NOT_STARTED' | 'IN_PROGRESS' | 'GRAYSCALE' | 'FULL' | 'RELEASED' | 'PAUSED' | 'ROLLED_BACK'
 }
 
 export interface ApprovalRecord {
-  id: string
+  recordId: string
   targetId: string
   targetType: string
-  version: number
+  targetVersion: number
   action: 'SUBMIT' | 'APPROVE' | 'REJECT' | 'WITHDRAW'
   operator: string
   operatedAt: string

@@ -32,6 +32,15 @@ public class AnalyticsController {
     }
 
     /**
+     * 概览统计 — 今日决策总量、通过率、拒绝率、P99 耗时。
+     */
+    @GetMapping("/overview")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getOverview() {
+        Map<String, Object> overview = analyticsService.getOverview();
+        return ResponseEntity.ok(ApiResponse.success(overview));
+    }
+
+    /**
      * 通过率趋势 — 按日/周/月维度统计通过率。
      *
      * @param startDate   开始日期 (ISO format, 默认 30 天前)

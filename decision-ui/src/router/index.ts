@@ -120,12 +120,24 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/variable/VariableListView.vue'),
         meta: { title: '变量管理' },
       },
+      {
+        path: 'variable/:id',
+        name: 'VariableEdit',
+        component: () => import('@/views/variable/VariableEditView.vue'),
+        meta: { title: '编辑变量', hidden: true },
+      },
       // 实验管理
       {
         path: 'experiment',
         name: 'ExperimentList',
         component: () => import('@/views/experiment/ExperimentListView.vue'),
         meta: { title: '实验管理' },
+      },
+      {
+        path: 'experiment/create',
+        name: 'ExperimentCreate',
+        component: () => import('@/views/experiment/ExperimentCreateView.vue'),
+        meta: { title: '新建实验', parent: '实验管理', hidden: true },
       },
       {
         path: 'experiment/:id',

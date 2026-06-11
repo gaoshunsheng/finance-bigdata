@@ -1,0 +1,35 @@
+════════════════════════════════════════════════════════════
+  全链路数据验证报告
+  时间: 2026-06-07 02:39:29
+════════════════════════════════════════════════════════════
+
+  ✅ CP2: DataX 同步 (HDFS/ODS)            PASS
+     耗时: 1404ms
+    ✅ ods_customer_info 分区: 1 个分区
+    ✅ ods_loan_application 分区: 1 个分区
+    ✅ ods_repayment_record 分区: 1 个分区
+
+  ⏭️ CP3: Spark ETL (ODS→DWD→DWS→ADS)    SKIP
+     耗时: 0ms
+    ⏭️ Hive 连接: 无法连接 HiveServer2 (localhost:10000)
+
+  ⚠️ CP5: Flink 实时特征 (Redis + HBase)     WARN
+     耗时: 238ms
+    ✅ Redis 连接: localhost:6379
+    ⚠️ Redis 特征: credit_query_3m: 期望: 有数据, 实际: 无数据
+    ⚠️ Redis 特征: overdue_6m: 期望: 有数据, 实际: 无数据
+    ⚠️ Redis 特征: apply_freq_1m: 期望: 有数据, 实际: 无数据
+    ⚠️ Redis 特征: transaction_summary_1h: 期望: 有数据, 实际: 无数据
+    ⏭️ HBase 检查: 连接失败: TTransportException(type=4, message='TSocket read 0 bytes')
+
+  ⚠️ CP6: 决策引擎 (API + ES)                WARN
+     耗时: 350ms
+    ✅ API 健康检查: HTTP 200
+    ⚠️ 决策请求测试: {"error":"UNAUTHORIZED","message":"Missing or invalid Authorization header"}
+    ✅ ES 连接: localhost:9200
+    ✅ ES 决策日志: decision-log-2026.06 有 4 条文档
+
+════════════════════════════════════════════════════════════
+  总结: 1 PASS, 2 WARN, 0 FAIL, 1 SKIP
+  总耗时: 2.0s
+════════════════════════════════════════════════════════════

@@ -25,7 +25,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * </p>
  */
 @Component
-@ConditionalOnProperty(name = "decision.security.enabled", havingValue = "true", matchIfMissing = false)
+@ConditionalOnProperty(name = "decision.security.enabled", havingValue = "true", matchIfMissing = true)
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
@@ -34,13 +34,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         this.jwtService = jwtService;
     }
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(JwtAuthenticationFilter.class);
+
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                      HttpServletResponse response,
                                      FilterChain filterChain)
             throws ServletException, IOException {
 
+        String method = request.getMethod();
+        String uri = request.getRequestURI();
         String authHeader = request.getHeader("Authorization");
+
+        log.info("JWT Filter: {} {} auth={}", method, uri,
+            authHeader != null ? authHeader.substring(0, Math.min(30, authHeader.length())) + "..." : "null");
 
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String token = authHeader.substring(7);
@@ -58,7 +65,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     );
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
+                log.info("JWT Filter: authenticated user={} role={} for {} {}", username, role, method, uri);
+            } else {
+                log.warn("JWT Filter: token validation returned null for {} {}", method, uri);
             }
+        } else {
+            log.warn("JWT Filter: no Bearer token for {} {}", method, uri);
         }
 
         filterChain.doFilter(request, response);

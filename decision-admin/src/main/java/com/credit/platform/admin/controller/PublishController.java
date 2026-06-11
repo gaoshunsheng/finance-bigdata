@@ -9,9 +9,12 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import com.credit.platform.admin.model.ApiResponse;
+import com.credit.platform.admin.model.ApprovalRecord;
 import com.credit.platform.admin.model.GrayscaleConfig;
 import com.credit.platform.admin.model.RuleEntity;
 import com.credit.platform.admin.model.VersionDiff;
+import com.credit.platform.admin.service.ApprovalService;
+import com.credit.platform.admin.service.GrayscalePublishService;
 import com.credit.platform.admin.service.RulePublishService;
 
 /**
@@ -25,9 +28,15 @@ import com.credit.platform.admin.service.RulePublishService;
 public class PublishController {
 
     private final RulePublishService publishService;
+    private final GrayscalePublishService grayscaleService;
+    private final ApprovalService approvalService;
 
-    public PublishController(RulePublishService publishService) {
+    public PublishController(RulePublishService publishService,
+                             GrayscalePublishService grayscaleService,
+                             ApprovalService approvalService) {
         this.publishService = publishService;
+        this.grayscaleService = grayscaleService;
+        this.approvalService = approvalService;
     }
 
     // ==================== 测试 ====================
@@ -200,6 +209,21 @@ public class PublishController {
             @PathVariable("id") String id) {
         VersionDiff diff = publishService.diffLatest(type, id);
         return ResponseEntity.ok(ApiResponse.success(diff));
+    }
+
+    // ==================== 全局聚合查询 ====================
+
+    /** 查询所有灰度配置列表 */
+    @GetMapping("/grayscale/list")
+    public ResponseEntity<ApiResponse<List<GrayscaleConfig>>> listAllGrayscales() {
+        return ResponseEntity.ok(ApiResponse.success(grayscaleService.listAllGrayscales()));
+    }
+
+    /** 查询全部发布历史（审批记录） */
+    @GetMapping("/history")
+    public ResponseEntity<ApiResponse<List<ApprovalRecord>>> listAllHistory() {
+        List<ApprovalRecord> records = approvalService.getAllApprovalRecords();
+        return ResponseEntity.ok(ApiResponse.success(records));
     }
 
     // ==================== 发布历史 ====================

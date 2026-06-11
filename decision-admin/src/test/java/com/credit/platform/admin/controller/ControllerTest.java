@@ -9,6 +9,8 @@ import com.credit.platform.admin.security.JwtService;
 import com.credit.platform.admin.security.Role;
 import com.credit.platform.admin.security.User;
 import com.credit.platform.admin.security.UserService;
+import com.credit.platform.admin.service.ApprovalService;
+import com.credit.platform.admin.service.GrayscalePublishService;
 import com.credit.platform.admin.service.RuleAdminService;
 import com.credit.platform.admin.service.RulePublishService;
 
@@ -36,12 +38,16 @@ class ControllerTest {
     class PublishControllerTest {
 
         private RulePublishService publishService;
+        private GrayscalePublishService grayscaleService;
+        private ApprovalService approvalService;
         private PublishController controller;
 
         @BeforeEach
         void setUp() {
             publishService = Mockito.mock(RulePublishService.class);
-            controller = new PublishController(publishService);
+            grayscaleService = Mockito.mock(GrayscalePublishService.class);
+            approvalService = Mockito.mock(ApprovalService.class);
+            controller = new PublishController(publishService, grayscaleService, approvalService);
             // Mock SecurityContext so getCurrentUser() returns "admin"
             Authentication auth = Mockito.mock(Authentication.class);
             when(auth.getName()).thenReturn("admin");

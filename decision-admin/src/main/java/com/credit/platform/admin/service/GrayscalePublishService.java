@@ -204,6 +204,13 @@ public class GrayscalePublishService {
         return grayscaleConfigMapper.listActiveGrayscales();
     }
 
+    /**
+     * 获取全部灰度配置（含已发布、灰度中、未开始）。
+     */
+    public List<GrayscaleConfig> listAllGrayscales() {
+        return grayscaleConfigMapper.selectList(null);
+    }
+
     private GrayscaleConfig findConfig(String type, String id) {
         return grayscaleConfigMapper.findByTarget(type, id).orElse(null);
     }

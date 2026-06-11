@@ -2,18 +2,41 @@
   <div>
     <div class="page-header">
       <h3>决策表管理</h3>
-      <a-button type="primary" @click="$router.push('/table/create')">
-        <template #icon><PlusOutlined /></template> 新建决策表
-      </a-button>
+      <a-space>
+        <a-button type="primary" @click="$router.push('/table/create')">
+          <template #icon><PlusOutlined /></template> 新建决策表
+        </a-button>
+        <a-button @click="loadData">刷新</a-button>
+      </a-space>
     </div>
-    <a-table :columns="columns" :data-source="[]" :pagination="{ pageSize: 20 }" row-key="id">
+    <a-table :columns="columns" :data-source="data" :loading="loading" :pagination="{ pageSize: 20 }" row-key="id">
+      <template #bodyCell="{ column, record }">
+        <template v-if="column.key === 'status'">
+          <a-tag :color="statusColor(record.status)">{{ statusLabel(record.status) }}</a-tag>
+        </template>
+        <template v-else-if="column.key === 'action'">
+          <a-space>
+            <a-button type="link" size="small" @click="$router.push(`/table/${record.id}`)">查看</a-button>
+            <a-popconfirm title="确认删除?" ok-text="删除" cancel-text="取消" @confirm="handleDelete(record.id)">
+              <a-button type="link" size="small" danger>删除</a-button>
+            </a-popconfirm>
+          </a-space>
+        </template>
+      </template>
       <template #emptyText><a-empty description="暂无决策表数据" /></template>
     </a-table>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref, onMounted } from 'vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
+import { message } from 'ant-design-vue'
+import { listTables, deleteTable } from '@/api/admin'
+import { statusColor, statusLabel } from '@/utils'
+
+const loading = ref(false)
+const data = ref<any[]>([])
 
 const columns = [
   { title: '名称', dataIndex: 'name', key: 'name' },
@@ -23,6 +46,29 @@ const columns = [
   { title: '更新时间', dataIndex: 'updatedAt', key: 'updatedAt', width: 180 },
   { title: '操作', key: 'action', width: 200 },
 ]
+
+async function loadData() {
+  loading.value = true
+  try {
+    data.value = await listTables({}) as any[]
+  } catch {
+    message.error('加载决策表列表失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+async function handleDelete(id: string) {
+  try {
+    await deleteTable(id)
+    message.success('已删除')
+    await loadData()
+  } catch {
+    message.error('删除失败')
+  }
+}
+
+onMounted(loadData)
 </script>
 
 <style scoped>

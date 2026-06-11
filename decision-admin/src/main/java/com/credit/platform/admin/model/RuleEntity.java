@@ -78,7 +78,7 @@ public class RuleEntity {
         return copy;
     }
 
-    /** 转为摘要 Map (不含 content)。 */
+    /** 转为摘要 Map (含 content 用于前端列表渲染)。 */
     public Map<String, Object> toSummary() {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("id", id);
@@ -86,6 +86,7 @@ public class RuleEntity {
         map.put("type", type);
         map.put("version", version);
         map.put("status", status.name());
+        map.put("content", content);
         map.put("description", description);
         map.put("createdBy", createdBy);
         map.put("createdAt", createdAt != null ? createdAt.toString() : null);

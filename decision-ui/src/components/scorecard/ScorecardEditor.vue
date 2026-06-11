@@ -50,7 +50,22 @@
             </a-col>
             <a-col :span="8">
               <a-form-item label="关联字段">
-                <a-input v-model:value="char.field" placeholder="如: age" />
+                <a-select
+                  v-model:value="char.field"
+                  placeholder="选择变量"
+                  style="width: 100%"
+                  show-search
+                  :filter-option="filterFieldOption"
+                  @change="(val: string) => onFieldChange(char, val)"
+                >
+                  <template v-if="groupedFields && groupedFields.length">
+                    <a-select-opt-group v-for="group in groupedFields" :key="group.layer" :label="group.label">
+                      <a-select-option v-for="opt in group.options" :key="opt.value" :value="opt.value">
+                        {{ opt.label }}
+                      </a-select-option>
+                    </a-select-opt-group>
+                  </template>
+                </a-select>
               </a-form-item>
             </a-col>
             <a-col :span="8">
@@ -134,7 +149,16 @@ import { ref, reactive, computed, watch } from 'vue'
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons-vue'
 import type { Characteristic, Bin, ScorecardModel } from '@/types/scorecard'
 
-const props = defineProps<{ modelValue: ScorecardModel }>()
+export interface FieldGroup {
+  layer: string
+  label: string
+  options: { value: string; label: string; dataType: string }[]
+}
+
+const props = defineProps<{
+  modelValue: ScorecardModel
+  groupedFields?: FieldGroup[]
+}>()
 const emit = defineEmits<{ (e: 'update:modelValue', val: ScorecardModel): void }>()
 
 const model = reactive<ScorecardModel>(
@@ -167,6 +191,28 @@ function addCharacteristic() {
     bins: [{ from: 0, to: 100, score: 0, label: '默认' }],
   })
   activeChars.value = [`char-${model.characteristics.length - 1}`]
+}
+
+function onFieldChange(char: any, val: string) {
+  if (props.groupedFields) {
+    for (const group of props.groupedFields) {
+      const opt = group.options.find(o => o.value === val)
+      if (opt) {
+        // Auto-fill characteristic name from variable label
+        if (!char.name || char.name.startsWith('特征')) {
+          char.name = opt.label
+        }
+        break
+      }
+    }
+  }
+}
+
+function filterFieldOption(input: string, option: any) {
+  const label = (option.label ?? '').toString().toLowerCase()
+  const value = (option.value ?? '').toString().toLowerCase()
+  const q = input.toLowerCase()
+  return label.includes(q) || value.includes(q)
 }
 
 function removeCharacteristic(idx: number) {

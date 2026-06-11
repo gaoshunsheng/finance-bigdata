@@ -50,7 +50,24 @@
                 </a-button>
               </div>
               <div class="th-field">
+                <a-select
+                  v-if="groupedFields && groupedFields.length && col.type === 'INPUT'"
+                  :value="col.field"
+                  size="small"
+                  style="width: 100%; font-size: 11px"
+                  placeholder="选择变量"
+                  show-search
+                  :filter-option="filterFieldOption"
+                  @change="(val: string) => onColumnFieldChange(col, val)"
+                >
+                  <a-select-opt-group v-for="group in groupedFields" :key="group.layer" :label="group.label">
+                    <a-select-option v-for="opt in group.options" :key="opt.value" :value="opt.value">
+                      {{ opt.label }}
+                    </a-select-option>
+                  </a-select-opt-group>
+                </a-select>
                 <a-input
+                  v-else
                   v-model:value="col.field"
                   size="small"
                   placeholder="字段名"
@@ -115,7 +132,16 @@ import { reactive, watch } from 'vue'
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons-vue'
 import type { TableModel, TableColumn, TableRow } from '@/types/flow'
 
-const props = defineProps<{ modelValue: TableModel }>()
+export interface FieldGroup {
+  layer: string
+  label: string
+  options: { value: string; label: string; dataType: string }[]
+}
+
+const props = defineProps<{
+  modelValue: TableModel
+  groupedFields?: FieldGroup[]
+}>()
 const emit = defineEmits<{ (e: 'update:modelValue', val: TableModel): void }>()
 
 const model = reactive<TableModel>(
@@ -159,6 +185,29 @@ function addRows(n: number) {
 
 function removeRow(idx: number) {
   model.rows.splice(idx, 1)
+}
+
+function onColumnFieldChange(col: TableColumn, val: string) {
+  col.field = val
+  // Auto-fill label from variable name
+  if (props.groupedFields) {
+    for (const group of props.groupedFields) {
+      const opt = group.options.find(o => o.value === val)
+      if (opt) {
+        if (!col.label || col.label.startsWith('输入') || col.label.startsWith('输出')) {
+          col.label = opt.label
+        }
+        break
+      }
+    }
+  }
+}
+
+function filterFieldOption(input: string, option: any) {
+  const label = (option.label ?? '').toString().toLowerCase()
+  const value = (option.value ?? '').toString().toLowerCase()
+  const q = input.toLowerCase()
+  return label.includes(q) || value.includes(q)
 }
 </script>
 

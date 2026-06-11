@@ -31,6 +31,7 @@
           :node="child"
           :depth="depth + 1"
           :fields="fields"
+          :grouped-fields="groupedFields"
           @update:node="onChildUpdate($event, child.id)"
           @remove="onChildRemove"
         />
@@ -45,13 +46,24 @@
       <div class="condition-row">
         <a-select
           v-model:value="node.condition!.field"
-          style="width: 160px"
+          style="width: 200px"
           placeholder="选择字段"
+          show-search
+          :filter-option="filterFieldOption"
           @change="onFieldChange"
         >
-          <a-select-option v-for="f in fields" :key="f.name" :value="f.name">
-            {{ f.label }}
-          </a-select-option>
+          <template v-if="groupedFields && groupedFields.length">
+            <a-select-opt-group v-for="group in groupedFields" :key="group.layer" :label="group.label">
+              <a-select-option v-for="opt in group.options" :key="opt.value" :value="opt.value">
+                {{ opt.label }}
+              </a-select-option>
+            </a-select-opt-group>
+          </template>
+          <template v-else>
+            <a-select-option v-for="f in fields" :key="f.name" :value="f.name">
+              {{ f.label }}
+            </a-select-option>
+          </template>
         </a-select>
 
         <a-select
@@ -86,10 +98,14 @@
             style="width: 200px"
             placeholder="输入值 (回车确认)"
           />
-          <a-switch
+          <a-select
             v-else-if="currentFieldType === 'BOOLEAN'"
-            v-model:checked="node.condition!.value"
-          />
+            v-model:value="node.condition!.value"
+            style="width: 120px"
+          >
+            <a-select-option :value="true">true</a-select-option>
+            <a-select-option :value="false">false</a-select-option>
+          </a-select>
           <a-input
             v-else
             v-model:value="node.condition!.value"
@@ -118,12 +134,13 @@ import {
   FolderOutlined,
   DeleteOutlined,
 } from '@ant-design/icons-vue'
-import type { ConditionField, ConditionTreeNode } from './ConditionBuilder.vue'
+import type { ConditionField, ConditionTreeNode, FieldGroup } from './ConditionBuilder.vue'
 
 const props = defineProps<{
   node: ConditionTreeNode
   depth: number
   fields: ConditionField[]
+  groupedFields?: FieldGroup[]
 }>()
 
 const emit = defineEmits<{
@@ -166,11 +183,18 @@ function operatorLabel(op: string): string {
   return map[op] || op
 }
 
+function filterFieldOption(input: string, option: any) {
+  const label = (option.label ?? option.children?.default?.()?.[0]?.children ?? '').toString().toLowerCase()
+  const value = (option.value ?? '').toString().toLowerCase()
+  const q = input.toLowerCase()
+  return label.includes(q) || value.includes(q)
+}
+
 function onFieldChange(fieldName: string) {
   if (props.node.condition) {
     const field = props.fields.find(f => f.name === fieldName)
     props.node.condition.valueType = field?.type || 'STRING'
-    props.node.condition.value = field?.type === 'NUMBER' ? 0 : ''
+    props.node.condition.value = field?.type === 'NUMBER' ? 0 : field?.type === 'BOOLEAN' ? false : ''
     props.node.condition.operator = 'EQ'
   }
 }

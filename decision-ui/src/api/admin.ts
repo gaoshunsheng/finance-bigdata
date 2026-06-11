@@ -1,14 +1,13 @@
 import { get, post, put, del } from './request'
-import type { PageParams, PageResult } from '@/types'
 import type { Rule } from '@/types/rule'
 import type { Scorecard } from '@/types/scorecard'
 import type { DecisionTable, DecisionTree, Flow } from '@/types/flow'
 import type { Variable } from '@/types/variable'
 import type { Experiment } from '@/types/experiment'
 
-// --- 规则 ---
-export function listRules(params?: PageParams & { type?: string; status?: string; keyword?: string }) {
-  return get<PageResult<Rule>>('/rules', params)
+// --- 规则 (API returns flat arrays, not PageResult) ---
+export function listRules(params?: any) {
+  return get<Rule[]>('/rules', params)
 }
 
 export function getRule(id: string) {
@@ -28,8 +27,8 @@ export function deleteRule(id: string) {
 }
 
 // --- 评分卡 ---
-export function listScorecards(params?: PageParams & { keyword?: string }) {
-  return get<PageResult<Scorecard>>('/scorecards', params)
+export function listScorecards(params?: any) {
+  return get<Scorecard[]>('/scorecards', params)
 }
 
 export function getScorecard(id: string) {
@@ -49,8 +48,8 @@ export function deleteScorecard(id: string) {
 }
 
 // --- 决策表 ---
-export function listTables(params?: PageParams & { keyword?: string }) {
-  return get<PageResult<DecisionTable>>('/tables', params)
+export function listTables(params?: any) {
+  return get<DecisionTable[]>('/tables', params)
 }
 
 export function getTable(id: string) {
@@ -70,8 +69,8 @@ export function deleteTable(id: string) {
 }
 
 // --- 决策树 ---
-export function listTrees(params?: PageParams & { keyword?: string }) {
-  return get<PageResult<DecisionTree>>('/trees', params)
+export function listTrees(params?: any) {
+  return get<DecisionTree[]>('/trees', params)
 }
 
 export function getTree(id: string) {
@@ -91,8 +90,8 @@ export function deleteTree(id: string) {
 }
 
 // --- 决策流 ---
-export function listFlows(params?: PageParams & { keyword?: string }) {
-  return get<PageResult<Flow>>('/flows', params)
+export function listFlows(params?: any) {
+  return get<Flow[]>('/flows', params)
 }
 
 export function getFlow(id: string) {
@@ -112,8 +111,8 @@ export function deleteFlow(id: string) {
 }
 
 // --- 变量 ---
-export function listVariables(params?: PageParams & { category?: string; layer?: string; keyword?: string }) {
-  return get<PageResult<Variable>>('/variables', params)
+export function listVariables(params?: any) {
+  return get<Variable[]>('/variables', params)
 }
 
 export function getVariable(id: string) {
@@ -133,8 +132,8 @@ export function deleteVariable(id: string) {
 }
 
 // --- 实验 ---
-export function listExperiments(params?: PageParams & { status?: string }) {
-  return get<PageResult<Experiment>>('/experiments', params)
+export function listExperiments(params?: any) {
+  return get<Experiment[]>('/experiments', params)
 }
 
 export function getExperiment(id: string) {

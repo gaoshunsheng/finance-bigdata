@@ -1,5 +1,7 @@
 package com.credit.platform.admin.security;
 
+import java.util.List;
+
 import jakarta.servlet.http.HttpServletResponse;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -14,6 +16,9 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 /**
  * Spring Security 配置 -JWT 无状态认证 + RBAC 端点权限。
@@ -44,10 +49,13 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(session ->
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
+                // OPTIONS 预检请求放行
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 // Actuator 健康检查端点
                 .requestMatchers("/actuator/**").permitAll()
                 // 公开端点
@@ -57,6 +65,9 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/auth/users").hasRole("ADMIN")
                 .requestMatchers("/api/v1/auth/users/**").hasRole("ADMIN")
                 .requestMatchers("/api/v1/auth/change-password").authenticated()
+                // 发布聚合查询 -VIEWER 及以上
+                .requestMatchers(HttpMethod.GET, "/api/v1/publish/grayscale/list").hasRole("VIEWER")
+                .requestMatchers(HttpMethod.GET, "/api/v1/publish/history").hasRole("VIEWER")
                 // 审批操作 -APPROVER 及以上
                 .requestMatchers("/api/v1/publish/*/approve").hasRole("APPROVER")
                 .requestMatchers("/api/v1/publish/*/reject").hasRole("APPROVER")
@@ -92,5 +103,18 @@ public class SecurityConfig {
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration config = new CorsConfiguration();
+        config.setAllowedOriginPatterns(List.of("*"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        config.setAllowedHeaders(List.of("*"));
+        config.setAllowCredentials(true);
+        config.setMaxAge(3600L);
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", config);
+        return source;
     }
 }

@@ -44,6 +44,12 @@
         <value>true</value>
     </property>
 
+    <!-- Disable notification API auth (Hive 3.x requires this when doAs=false) -->
+    <property>
+        <name>hive.metastore.event.db.notification.api.auth</name>
+        <value>false</value>
+    </property>
+
     <!-- Metastore Thrift -->
     <property>
         <name>hive.metastore.uris</name>
