@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- Use local mode (no YARN needed for dev environment) -->
+    <property>
+        <name>mapreduce.framework.name</name>
+        <value>local</value>
+    </property>
+
+    <!-- Local mode settings -->
+    <property>
+        <name>mapreduce.tasktracker.map.tasks.maximum</name>
+        <value>4</value>
+    </property>
+    <property>
+        <name>mapreduce.tasktracker.reduce.tasks.maximum</name>
+        <value>2</value>
+    </property>
+
+    <!-- Disable speculative execution -->
+    <property>
+        <name>mapreduce.map.speculative</name>
+        <value>false</value>
+    </property>
+    <property>
+        <name>mapreduce.reduce.speculative</name>
+        <value>false</value>
+    </property>
+
+    <!-- Application classpath -->
+    <property>
+        <name>mapreduce.application.classpath</name>
+        <value>/opt/hadoop/share/hadoop/common/*:/opt/hadoop/share/hadoop/common/lib/*:/opt/hadoop/share/hadoop/hdfs/*:/opt/hadoop/share/hadoop/hdfs/lib/*:/opt/hadoop/share/hadoop/mapreduce/*:/opt/hadoop/share/hadoop/mapreduce/lib/*:/opt/hive/lib/*</value>
+    </property>
+</configuration>

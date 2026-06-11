@@ -357,6 +357,8 @@ services:
     volumes:
       - ./hive/hive-site.xml:/opt/hive/conf/hive-site.xml:ro
       - ./hive/core-site.xml:/opt/hadoop/etc/hadoop/core-site.xml:ro
+      - ./hive/mapred-site.xml:/opt/hadoop/etc/hadoop/mapred-site.xml:ro
+      - ./hive/tez-site.xml:/opt/hive/conf/tez-site.xml:ro
       - ./hive/lib/mysql-connector-j.jar:/opt/hive/lib/mysql-connector-j.jar:ro
     depends_on:
       - mysql
@@ -381,6 +383,8 @@ services:
     volumes:
       - ./hive/hive-site.xml:/opt/hive/conf/hive-site.xml:ro
       - ./hive/core-site.xml:/opt/hadoop/etc/hadoop/core-site.xml:ro
+      - ./hive/mapred-site.xml:/opt/hadoop/etc/hadoop/mapred-site.xml:ro
+      - ./hive/tez-site.xml:/opt/hive/conf/tez-site.xml:ro
       - ./hive/lib/mysql-connector-j.jar:/opt/hive/lib/mysql-connector-j.jar:ro
     depends_on:
       - hive-metastore

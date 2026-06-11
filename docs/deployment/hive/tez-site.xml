@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <property>
+        <name>tez.lib.uris</name>
+        <value>hdfs:///apps/tez/tez.tar.gz</value>
+    </property>
+
+    <property>
+        <name>tez.use.cluster.hadoop-libs</name>
+        <value>true</value>
+    </property>
+
+    <!-- Local mode staging dir on local filesystem -->
+    <property>
+        <name>tez.staging-dir</name>
+        <value>file:///tmp/tez-staging</value>
+    </property>
+
+    <property>
+        <name>tez.local.mode</name>
+        <value>true</value>
+    </property>
+
+    <property>
+        <name>tez.runtime.unordered.output.buffer.size-mb</name>
+        <value>128</value>
+    </property>
+</configuration>

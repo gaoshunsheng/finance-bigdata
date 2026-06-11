@@ -18,14 +18,14 @@
         <value>root123456</value>
     </property>
 
-    <!-- General -->
+    <!-- Execution Engine: Tez (with fallback to MR local mode) -->
+    <property>
+        <name>hive.execution.engine</name>
+        <value>tez</value>
+    </property>
     <property>
         <name>hive.server2.enable.doAs</name>
         <value>false</value>
-    </property>
-    <property>
-        <name>hive.execution.engine</name>
-        <value>mr</value>
     </property>
     <property>
         <name>metastore.warehouse.dir</name>
@@ -33,7 +33,15 @@
     </property>
     <property>
         <name>hive.exec.scratchdir</name>
-        <value>/tmp/hive</value>
+        <value>file:///tmp/hive</value>
+    </property>
+    <property>
+        <name>hive.exec.local.scratchdir</name>
+        <value>/tmp/hive/local</value>
+    </property>
+    <property>
+        <name>hive.downloaded.resources.dir</name>
+        <value>/tmp/hive/resources</value>
     </property>
     <property>
         <name>hive.metastore.schema.verification</name>
@@ -54,5 +62,11 @@
     <property>
         <name>hive.metastore.uris</name>
         <value>thrift://hive-metastore:9083</value>
+    </property>
+
+    <!-- Tez local mode (no YARN required) -->
+    <property>
+        <name>hive.tez.local.mode</name>
+        <value>true</value>
     </property>
 </configuration>
