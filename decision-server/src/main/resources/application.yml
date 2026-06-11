@@ -81,6 +81,29 @@ decision:
           mock-mode: true
           url: ${BLACKLIST_URL:http://localhost:9095}
 
+# 特征存储配置 — L2 缓存变量 (Redis/HBase)
+feature:
+  store:
+    enabled: ${FEATURE_STORE_ENABLED:false}
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: 0
+      timeout-ms: 3000
+    hbase:
+      zk-quorum: ${HBASE_ZK_QUORUM:localhost}
+      zk-port: ${HBASE_ZK_PORT:2181}
+      table-name: customer_feature
+      column-family: cf
+      rpc-timeout-ms: 5000
+      operation-timeout-ms: 10000
+    cache:
+      redis-ttl-hours: 1
+      feature-types: credit_query_3m,overdue_6m,apply_freq_1m,transaction_summary_1h,credit_score,risk_level
+      query-timeout-ms: 200
+      max-retries: 1
+
 elasticsearch:
   host: ${ES_HOST:localhost}
   port: ${ES_PORT:9200}
